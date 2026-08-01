@@ -22,7 +22,7 @@ export default function Home() {
     { name: 'Stand Upright', logo: '/logo.png', status: 'Fully Supported', tag: 'ROBLOX' }
   ]);
 
-  const [loaderScript, setLoaderScript] = useState('loadstring(game:HttpGet("https://first-rho-ashen.vercel.app/api/raw/main"))()');
+  const [loaderScript, setLoaderScript] = useState('loadstring(game:HttpGet("https://api.jnkie.com/api/v1/luascripts/public/4ec630b95743ef465a8e6ac5e840b9f4cf535f42ae3bd2bc766a8fdd3fb04e86/download"))()');
   const [currentKey, setCurrentKey] = useState('a5dcf214-d194-4be8-8bac-2bb357f152c7');
   const [youtubeLink, setYoutubeLink] = useState('https://www.youtube.com/@owizk');
   const [discordLink, setDiscordLink] = useState('');
@@ -109,8 +109,7 @@ export default function Home() {
         return true;
       }
     } catch (e) {}
-    
-    // Fallback cho trình duyệt WebView/Mobile cũ
+        
     const textArea = document.createElement("textarea");
     textArea.value = text;
     textArea.style.position = "fixed";
@@ -319,7 +318,7 @@ export default function Home() {
 
           {/* Footer */}
           <div className="text-center mt-6 text-[11px] text-[#949db1] font-semibold">
-            <strong>{siteTitle}</strong> &copy; {new Date().getFullYear()} Platform. All rights reserved.
+            <strong>{siteTitle}</strong> &copy; {new Date().getFullYear()}
           </div>
 
         </div>
