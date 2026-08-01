@@ -321,7 +321,7 @@ end)`;
         <div className="absolute w-[400px] h-[400px] bg-[#6E96FF]/20 rounded-full blur-[140px] pointer-events-none" />
         <form onSubmit={handleLogin} className="z-10 bg-[#0a0d16]/90 border border-[#6E96FF]/40 p-6 sm:p-8 rounded-3xl w-full max-w-sm shadow-[0_0_50px_rgba(110,150,255,0.15)] backdrop-blur-2xl">
           <div className="flex items-center gap-2.5 justify-center mb-6 text-[#6E96FF] font-black text-xl tracking-wider uppercase">
-            <Shield className="w-7 h-7 text-[#6E96FF]" /> LURIX ADMIN VIP
+            <Shield className="w-7 h-7 text-[#6E96FF]" /> LURIX
           </div>
           <div className="mb-4">
             <label className="text-[11px] font-extrabold text-gray-400 mb-1.5 block">BẢO MẬT HỆ THỐNG</label>
@@ -339,7 +339,7 @@ end)`;
             className="w-full bg-[#6E96FF] text-black font-black py-3.5 rounded-xl text-xs shadow-[0_0_20px_rgba(110,150,255,0.4)] hover:brightness-110 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-95"
           >
             {isLoggingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
-            {isLoggingIn ? 'ĐANG XÁC THỰC...' : 'ĐĂNG NHẬP VÀO ADMIN VIP'}
+            {isLoggingIn ? 'ĐANG XÁC THỰC...' : 'ĐĂNG NHẬP'}
           </button>
         </form>
       </div>
