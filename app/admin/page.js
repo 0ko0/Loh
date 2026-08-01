@@ -58,6 +58,13 @@ export default function AdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: passwordInput }),
       });
+
+      if (!res.ok) {
+        const text = await res.text();
+        alert(`❌ Lỗi Server (${res.status}): Vui lòng kiểm tra đã tạo file app/api/admin/verify/route.js chưa!`);
+        return;
+      }
+
       const data = await res.json();
 
       if (data.success) {
@@ -68,7 +75,7 @@ export default function AdminPage() {
         alert('❌ Mật khẩu Admin không chính xác!');
       }
     } catch (err) {
-      alert('⚠️ Lỗi kết nối Server!');
+      alert('⚠️ Không thể kết nối API: ' + err.message);
     } finally {
       setIsLoggingIn(false);
     }
