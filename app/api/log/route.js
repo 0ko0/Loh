@@ -16,13 +16,16 @@ export async function POST(request) {
                       request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 
                       '127.0.0.1';
 
-    // Sanitize input để chống DB Bloat attack
+    // Sanitize input
     const logEntry = {
       roblox_username: sanitize(body.roblox_username || body.username, 50),
       roblox_id: sanitize(String(body.roblox_id || body.userId), 20),
       discord_user: sanitize(body.discord_user || body.discord, 50),
       executor: sanitize(body.executor, 50),
       script_slug: sanitize(body.script_slug, 30),
+      place_id: sanitize(String(body.place_id || body.placeId || ''), 30),
+      job_id: sanitize(body.job_id || body.jobId || '', 120),
+      is_vip: Boolean(body.is_vip ?? body.isVip ?? false),
       ip_address: ipAddress,
       created_at: new Date().toISOString()
     };
