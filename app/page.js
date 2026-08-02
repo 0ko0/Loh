@@ -31,32 +31,47 @@ export default function Home() {
   const [copiedScript, setCopiedScript] = useState(false);
   const [copiedKey, setCopiedKey] = useState(false);
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const { data } = await supabase.from('settings').select('*');
-        if (data) {
-          data.forEach(item => {
-            if (item.key === 'site_title') setSiteTitle(item.value || 'LURIX HUB');
-            if (item.key === 'badge_text') setBadgeText(item.value || 'Online & Active');
-            if (item.key === 'supported_games') {
-              try {
-                const parsed = JSON.parse(item.value);
-                if (Array.isArray(parsed) && parsed.length > 0) setSupportedGames(parsed);
-              } catch(e) {}
-            }
-            if (item.key === 'loader_script') setLoaderScript(item.value || '');
-            if (item.key === 'current_key') setCurrentKey(item.value || '');
-            if (item.key === 'youtube_link') setYoutubeLink(item.value || 'https://www.youtube.com/@owizk');
-            if (item.key === 'discord_link') setDiscordLink(item.value || '');
-          });
-        }
-      } catch (err) {
-        console.error('Failed to load settings:', err);
+useEffect(() => {
+  async function loadData() {
+    try {
+      
+      const PUBLIC_KEYS = [
+        'site_title', 
+        'badge_text', 
+        'supported_games', 
+        'loader_script', 
+        'current_key', 
+        'youtube_link', 
+        'discord_link'
+      ];
+
+      const { data } = await supabase
+        .from('settings')
+        .select('key, value')
+        .in('key', PUBLIC_KEYS);
+
+      if (data) {
+        data.forEach(item => {
+          if (item.key === 'site_title') setSiteTitle(item.value || 'LURIX HUB');
+          if (item.key === 'badge_text') setBadgeText(item.value || 'Online & Active');
+          if (item.key === 'supported_games') {
+            try {
+              const parsed = JSON.parse(item.value);
+              if (Array.isArray(parsed) && parsed.length > 0) setSupportedGames(parsed);
+            } catch(e) {}
+          }
+          if (item.key === 'loader_script') setLoaderScript(item.value || '');
+          if (item.key === 'current_key') setCurrentKey(item.value || '');
+          if (item.key === 'youtube_link') setYoutubeLink(item.value || 'https://www.youtube.com/@owizk');
+          if (item.key === 'discord_link') setDiscordLink(item.value || '');
+        });
       }
+    } catch (err) {
+      console.error('Failed to load settings:', err);
     }
-    loadData();
-  }, []);
+  }
+  loadData();
+}, []);
 
   const triggerFeedback = (type = 'success') => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
