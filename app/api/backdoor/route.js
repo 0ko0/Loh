@@ -67,7 +67,7 @@ export async function POST(request) {
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true, message: '🚀 Đã phát lệnh Backdoor thành công!', data });
+    return NextResponse.json({ success: true, message: 'done', data });
   } catch (err) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });
   }
