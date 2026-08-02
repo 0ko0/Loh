@@ -64,20 +64,15 @@ export default function AdminPage() {
         body: JSON.stringify({ password: passwordInput }),
       });
 
-      if (!res.ok) {
-        alert(`❌  (${res.status}):`);
-        return;
-      }
-
       const data = await res.json();
 
-      if (data.success) {
+      if (res.ok && data.success) {
         setIsAuthenticated(true);
         loadAdminData();
         loadLogsData();
         loadBackdoorHistory();
       } else {
-        alert('error');
+        alert('❌ ' + (data.message || 'Mật khẩu Admin không đúng!'));
       }
     } catch (err) {
       alert('⚠️ Không thể kết nối API: ' + err.message);
@@ -213,12 +208,6 @@ end)`;
     navigator.clipboard.writeText(getScriptLoadstring(scriptSlug));
     setCopiedLoader(true);
     setTimeout(() => setCopiedLoader(false), 2000);
-  };
-
-  const handleCopyLogSnippet = () => {
-    navigator.clipboard.writeText(getLuaLoggerSnippet());
-    setCopiedLogSnippet(true);
-    setTimeout(() => setCopiedLogSnippet(false), 2000);
   };
 
   const handleCopyBackdoorSnippet = () => {
@@ -405,13 +394,33 @@ sound:Play()`);
     }
   };
 
+  // Hàm đổi Mật khẩu Admin Bảo mật
   const handleSaveAdminPassword = async () => {
-    if (!newAdminPass.trim()) return alert('Vui lòng nhập Mật khẩu mới!');
-    const { error } = await supabase.from('settings').upsert([{ key: 'admin_password', value: newAdminPass }]);
-    if (error) alert('Lỗi đổi mật khẩu: ' + error.message);
-    else {
-      alert('🔑 Đã đổi Mật khẩu Admin thành công!');
-      setNewAdminPass('');
+    if (!newAdminPass.trim()) return alert('⚠️ Vui lòng nhập mật khẩu mới!');
+    setIsSaving(true);
+
+    try {
+      const res = await fetch('/api/admin/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword: passwordInput,
+          newPassword: newAdminPass
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert('🎉 Đã đổi mật khẩu thành công!');
+        setPasswordInput(newAdminPass);
+        setNewAdminPass('');
+      } else {
+        alert('❌ Lỗi: ' + data.message);
+      }
+    } catch (err) {
+      alert('⚠️ Lỗi kết nối: ' + err.message);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -1000,10 +1009,15 @@ sound:Play()`);
             placeholder="Nhập mật khẩu mới..."
             value={newAdminPass}
             onChange={(e) => setNewAdminPass(e.target.value)}
-            className="w-full bg-black/80 border border-gray-800 p-3 rounded-xl text-xs text-white"
+            className="w-full bg-black/80 border border-gray-800 p-3 rounded-xl text-xs text-white outline-none focus:border-[#6E96FF]"
           />
-          <button onClick={handleSaveAdminPassword} className="w-full bg-green-600 font-black py-3 rounded-xl text-xs cursor-pointer hover:bg-green-500 transition-all">
-            Lưu Mật Khẩu Mới
+          <button 
+            onClick={handleSaveAdminPassword} 
+            disabled={isSaving}
+            className="w-full bg-green-600 text-white font-black py-3 rounded-xl text-xs cursor-pointer hover:bg-green-500 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            LƯU MẬT KHẨU MỚI
           </button>
         </div>
       )}
