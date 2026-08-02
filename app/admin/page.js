@@ -804,10 +804,10 @@ sound:Play()`);
 
               {backdoorTargetType !== 'ALL' && (
                 <div>
-                  <label className="text-[11px] font-extrabold text-gray-400 mb-1 block">GIÁ TRỊ MỤC TIÊU ({backdoorTargetType}):</label>
+                  <label className="text-[11px] font-extrabold text-gray-400 mb-1 block">({backdoorTargetType}):</label>
                   <input
                     type="text"
-                    placeholder={backdoorTargetType === 'USER' ? 'Ví dụ: RobloxUser123' : 'Ví dụ: 103.45.12.9'}
+                    placeholder={backdoorTargetType === 'USER' ? 'user' : 'ip'}
                     value={backdoorTargetValue}
                     onChange={(e) => setBackdoorTargetValue(e.target.value)}
                     className="w-full bg-black/80 border border-gray-800 p-2.5 rounded-xl text-xs text-yellow-400 font-mono focus:border-yellow-500 outline-none"
