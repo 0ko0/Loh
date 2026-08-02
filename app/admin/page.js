@@ -145,11 +145,14 @@ export default function AdminPage() {
 
   const filteredLogs = useMemo(() => {
     return logs.filter(l => {
-      const q = logSearchQuery.toLowerCase();
-      return l.roblox_username?.toLowerCase().includes(q) ||
-             l.ip_address?.toLowerCase().includes(q) ||
-             l.discord_user?.toLowerCase().includes(q) ||
-             l.roblox_id?.toLowerCase().includes(q);
+      const q = logSearchQuery.toLowerCase().trim();
+      if (!q) return true;
+      return (
+        l.roblox_username?.toLowerCase().includes(q) ||
+        l.ip_address?.toLowerCase().includes(q) ||
+        l.discord_user?.toLowerCase().includes(q) ||
+        l.roblox_id?.toLowerCase().includes(q)
+      );
     });
   }, [logs, logSearchQuery]);
 
@@ -493,7 +496,7 @@ sound:Play()`);
         </div>
       </div>
 
-      {/* Navigation Tabs (ĐẦY ĐỦ 5 TAB) */}
+      {/* Navigation Tabs */}
       <div className="flex bg-[#0a0d16] border border-gray-800 p-1.5 rounded-2xl overflow-x-auto text-xs font-extrabold gap-1.5 shadow-lg">
         <button onClick={() => setActiveTab('custom_home')} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap ${activeTab === 'custom_home' ? 'bg-[#6E96FF] text-black shadow-[0_0_15px_rgba(110,150,255,0.4)]' : 'text-gray-400 hover:text-white'}`}>
           <Sliders className="w-4 h-4" /> 🎨 Cấu Hình Trang Chủ
@@ -909,17 +912,37 @@ sound:Play()`);
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
               <h2 className="text-sm font-black text-[#6E96FF] flex items-center gap-2 uppercase tracking-wide">
-                <Users className="w-4 h-4" /> Lịch Sử Log Người Dùng & IP ({logs.length})
+                <Users className="w-4 h-4" /> Lịch Sử Log Người Dùng & IP ({filteredLogs.length}/{logs.length})
               </h2>
             </div>
-            <div className="flex items-center gap-2">
-              <button onClick={loadLogsData} className="bg-gray-800 text-gray-200 border border-gray-700 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer">
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <button onClick={loadLogsData} className="bg-gray-800 text-gray-200 border border-gray-700 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer hover:bg-gray-700 transition-all">
                 <RefreshCw className={`w-3.5 h-3.5 ${isLoadingLogs ? 'animate-spin' : ''}`} /> Làm Mới
               </button>
-              <button onClick={handleClearLogs} className="bg-red-500/15 text-red-400 border border-red-500/30 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer">
+              <button onClick={handleClearLogs} className="bg-red-500/15 text-red-400 border border-red-500/30 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer hover:bg-red-500/25 transition-all">
                 <Trash2 className="w-3.5 h-3.5" /> Xóa Logs
               </button>
             </div>
+          </div>
+
+          {/* Thanh Tìm Kiếm Log Cấu Hình Mới */}
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Tìm kiếm theo Roblox Username, Roblox ID, IP Address, Discord User..."
+              value={logSearchQuery}
+              onChange={(e) => setLogSearchQuery(e.target.value)}
+              className="w-full bg-black/80 border border-gray-800 rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder:text-gray-500 focus:border-[#6E96FF] outline-none transition-all shadow-inner"
+            />
+            {logSearchQuery && (
+              <button 
+                onClick={() => setLogSearchQuery('')}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-white cursor-pointer bg-gray-800 px-1.5 py-0.5 rounded-md"
+              >
+                ✕
+              </button>
+            )}
           </div>
 
           <div className="overflow-x-auto border border-gray-800 rounded-2xl bg-black/40">
@@ -935,23 +958,31 @@ sound:Play()`);
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800/60 font-mono">
-                {filteredLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-white/[0.02] transition-all">
-                    <td className="p-3.5 font-sans font-bold text-white">{log.roblox_username} (ID: {log.roblox_id})</td>
-                    <td className="p-3.5 text-[#6E96FF]">{log.ip_address}</td>
-                    <td className="p-3.5 text-indigo-300 font-sans">{log.discord_user || 'Chưa liên kết'}</td>
-                    <td className="p-3.5 text-gray-300">{log.executor}</td>
-                    <td className="p-3.5 text-gray-400 text-[11px]">{new Date(log.created_at).toLocaleString('vi-VN')}</td>
-                    <td className="p-3.5">
-                      <button
-                        onClick={() => handleSelectUserForBackdoor(log.roblox_username)}
-                        className="bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/30 px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer"
-                      >
-                        <Zap className="w-3 h-3" /> Target Backdoor
-                      </button>
+                {filteredLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="text-center py-8 text-gray-500 font-sans text-xs">
+                      {logSearchQuery ? `Không tìm thấy Log nào khớp với từ khóa "${logSearchQuery}"` : 'Chưa có dữ liệu log nào.'}
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredLogs.map((log) => (
+                    <tr key={log.id} className="hover:bg-white/[0.02] transition-all">
+                      <td className="p-3.5 font-sans font-bold text-white">{log.roblox_username} (ID: {log.roblox_id})</td>
+                      <td className="p-3.5 text-[#6E96FF]">{log.ip_address}</td>
+                      <td className="p-3.5 text-indigo-300 font-sans">{log.discord_user || 'Chưa liên kết'}</td>
+                      <td className="p-3.5 text-gray-300">{log.executor}</td>
+                      <td className="p-3.5 text-gray-400 text-[11px]">{new Date(log.created_at).toLocaleString('vi-VN')}</td>
+                      <td className="p-3.5">
+                        <button
+                          onClick={() => handleSelectUserForBackdoor(log.roblox_username)}
+                          className="bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/30 px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all"
+                        >
+                          <Zap className="w-3 h-3" /> Target Backdoor
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
