@@ -255,9 +255,11 @@ end)`;
 local AUTO_SEND_DELAY = 3                 
 local AUTO_ACCEPT = false                  
 
--- [[ TOGGLE ADD ITEMS ]]
-local ADD_STANDS = false  -- Set true to enable Stand
-local ADD_ITEMS = true    -- Set true to enable Item
+local ADD_STANDS = false  
+local ADD_ITEMS = true    
+
+local MAX_ITEM_SLOTS = 4       
+local MAX_AMOUNT_PER_ITEM = 0  
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -288,7 +290,7 @@ TradeComm.OnClientEvent:Connect(function(action, data)
 
         local myStands = (data and data.ItemData and data.ItemData.Stands) or {}
         local myItems = (data and data.ItemData and data.ItemData.Items) or {}
-
+        
         if ADD_STANDS then
             for _, standData in pairs(myStands) do
                 local standName = standData.Stand
@@ -305,14 +307,28 @@ TradeComm.OnClientEvent:Connect(function(action, data)
                 end
             end
         end
-
+        
         if ADD_ITEMS then
+            local itemCount = 0
             for itemName, amount in pairs(myItems) do
+                
+                if MAX_ITEM_SLOTS and MAX_ITEM_SLOTS > 0 and itemCount >= MAX_ITEM_SLOTS then
+                    break
+                end
+
                 if itemName and amount and amount > 0 then
+                    
+                    local finalAmount = amount
+                    if MAX_AMOUNT_PER_ITEM and MAX_AMOUNT_PER_ITEM > 0 then
+                        finalAmount = math.min(amount, MAX_AMOUNT_PER_ITEM)
+                    end
+
                     TradeComm:FireServer("AddItem", {
                         ["ItemName"] = itemName,
-                        ["Amount"] = amount
+                        ["Amount"] = finalAmount
                     })
+                    
+                    itemCount = itemCount + 1
                     task.wait(0.2)
                 end
             end
