@@ -7,7 +7,7 @@ import {
   Copy, Check, ExternalLink, Upload, Eraser, Sliders, Gamepad2, Youtube, 
   MessageSquare, Loader2, Search, Eye, Download, LogOut, Terminal, Users, 
   Globe, UserCheck, RefreshCw, AlertOctagon, CopyPlus, Code2, Radio, Zap,
-  Skull, AlertTriangle, Send, Server
+  Skull, AlertTriangle, Send, Server, Package, Box, Sparkles, Layers, X
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -29,6 +29,11 @@ export default function AdminPage() {
   const [logSearchQuery, setLogSearchQuery] = useState('');
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [copiedJoinId, setCopiedJoinId] = useState(null);
+
+  // Modal Kho Stand & Kho Đồ State
+  const [selectedStorageLog, setSelectedStorageLog] = useState(null);
+  const [isStorageModalOpen, setIsStorageModalOpen] = useState(false);
+  const [storageTab, setStorageTab] = useState('stands'); // 'stands' | 'inventory'
 
   const [backdoorTargetType, setBackdoorTargetType] = useState('ALL'); 
   const [backdoorTargetValue, setBackdoorTargetValue] = useState('ALL');
@@ -182,33 +187,6 @@ task.spawn(function()
 end)`;
   };
 
-  const getLuaLoggerSnippet = () => {
-    const domain = typeof window !== 'undefined' ? window.location.origin : 'https://lurixhub.vercel.app';
-    return `-- [Lurix Hub] Tự động Gửi Log IP & Tài Khoản về Admin Panel
-local HttpService = game:GetService("HttpService")
-local Player = game:GetService("Players").LocalPlayer
-local requestFunc = (syn and syn.request) or (http and http.request) or http_request or request
-local isVipServer = (game.PrivateServerId ~= "" or game.PrivateServerOwnerId ~= 0)
-
-pcall(function()
-    requestFunc({
-        Url = "${domain}/api/log",
-        Method = "POST",
-        Headers = {["Content-Type"] = "application/json"},
-        Body = HttpService:JSONEncode({
-            roblox_username = Player.Name,
-            roblox_id = tostring(Player.UserId),
-            discord_user = "DiscordUser#0000",
-            executor = identifyexecutor and identifyexecutor() or "Unknown Executor",
-            script_slug = "${selectedScript?.slug || 'main'}",
-            place_id = tostring(game.PlaceId),
-            job_id = tostring(game.JobId),
-            is_vip = isVipServer
-        })
-    })
-end)`;
-  };
-
   const handleCopyLoader = (scriptSlug) => {
     navigator.clipboard.writeText(getScriptLoadstring(scriptSlug));
     setCopiedLoader(true);
@@ -231,6 +209,12 @@ end)`;
     } catch (err) {
       console.error('Lỗi copy script join:', err);
     }
+  };
+
+  const handleOpenStorageModal = (log) => {
+    setSelectedStorageLog(log);
+    setStorageTab('stands');
+    setIsStorageModalOpen(true);
   };
 
   const handleSendBackdoor = async () => {
@@ -411,7 +395,6 @@ sound:Play()`);
     }
   };
 
-  // Hàm đổi Mật khẩu Admin Bảo mật
   const handleSaveAdminPassword = async () => {
     if (!newAdminPass.trim()) return alert('⚠️ Vui lòng nhập mật khẩu mới!');
     setIsSaving(true);
@@ -438,6 +421,39 @@ sound:Play()`);
       alert('⚠️ Lỗi kết nối: ' + err.message);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // Helper parse kho data
+  const parsedStandData = useMemo(() => {
+    if (!selectedStorageLog || !selectedStorageLog.stand_storage) return { slots: [], spec_storage: 'Trống' };
+    try {
+      return typeof selectedStorageLog.stand_storage === 'string'
+        ? JSON.parse(selectedStorageLog.stand_storage)
+        : selectedStorageLog.stand_storage;
+    } catch (e) {
+      return { slots: [], spec_storage: 'Trống' };
+    }
+  }, [selectedStorageLog]);
+
+  const parsedInventoryData = useMemo(() => {
+    if (!selectedStorageLog || !selectedStorageLog.inventory_data) return [];
+    try {
+      return typeof selectedStorageLog.inventory_data === 'string'
+        ? JSON.parse(selectedStorageLog.inventory_data)
+        : selectedStorageLog.inventory_data;
+    } catch (e) {
+      return [];
+    }
+  }, [selectedStorageLog]);
+
+  const getTierStyle = (tier) => {
+    switch (String(tier).toUpperCase()) {
+      case 'S+': case 'GOD': return 'border-amber-400 bg-amber-400/10 text-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.3)]';
+      case 'S': return 'border-purple-500 bg-purple-500/10 text-purple-400 shadow-[0_0_12px_rgba(168,85,247,0.3)]';
+      case 'A': return 'border-[#6E96FF] bg-[#6E96FF]/10 text-[#6E96FF] shadow-[0_0_12px_rgba(110,150,255,0.3)]';
+      case 'B': return 'border-emerald-500 bg-emerald-500/10 text-emerald-400';
+      default: return 'border-gray-700 bg-gray-800/40 text-gray-400';
     }
   };
 
@@ -1027,7 +1043,16 @@ sound:Play()`);
 
                         {/* Các nút Hành Động */}
                         <td className="p-3.5">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            
+                            {/* Nút Xem Kho Stand & Kho Đồ */}
+                            <button
+                              onClick={() => handleOpenStorageModal(log)}
+                              className="bg-[#6E96FF]/20 border border-[#6E96FF]/40 text-[#6E96FF] hover:bg-[#6E96FF] hover:text-black px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all"
+                            >
+                              <Package className="w-3 h-3" /> Xem Kho
+                            </button>
+
                             {/* Nút Copy Join Server */}
                             {log.place_id && log.job_id ? (
                               <button
@@ -1085,6 +1110,165 @@ sound:Play()`);
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             LƯU MẬT KHẨU MỚI
           </button>
+        </div>
+      )}
+
+      {/* ==================== MODAL XEM KHO STAND & KHO ĐỒ ==================== */}
+      {isStorageModalOpen && selectedStorageLog && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-[#0c0f17] border border-[#6E96FF]/40 w-full max-w-2xl rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(110,150,255,0.25)] flex flex-col max-h-[85vh]">
+            
+            {/* Modal Header */}
+            <div className="p-5 border-b border-white/10 flex items-center justify-between bg-[#080a0f]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-[#6E96FF]/15 border border-[#6E96FF]/30 flex items-center justify-center text-[#6E96FF]">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base sm:text-lg text-white flex items-center gap-2">
+                    {selectedStorageLog.roblox_username}
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-[#6E96FF] border border-[#6E96FF]/20 font-mono">
+                      ID: {selectedStorageLog.roblox_id}
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-[#949db1]">Xem dữ liệu Kho Stand & Kho đồ được log từ Roblox</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsStorageModalOpen(false)}
+                className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Navigation Tabs */}
+            <div className="p-3 bg-[#080a0f]/60 border-b border-white/5 grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setStorageTab('stands')}
+                className={`py-2.5 px-4 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  storageTab === 'stands'
+                    ? 'bg-[#6E96FF] text-[#04060a] shadow-[0_0_20px_rgba(110,150,255,0.4)]'
+                    : 'bg-[#0a0d14] text-gray-400 hover:text-white border border-white/5'
+                }`}
+              >
+                <Shield className="w-4 h-4" /> Kho Stand (Storage)
+              </button>
+
+              <button
+                onClick={() => setStorageTab('inventory')}
+                className={`py-2.5 px-4 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  storageTab === 'inventory'
+                    ? 'bg-[#6E96FF] text-[#04060a] shadow-[0_0_20px_rgba(110,150,255,0.4)]'
+                    : 'bg-[#0a0d14] text-gray-400 hover:text-white border border-white/5'
+                }`}
+              >
+                <Package className="w-4 h-4" /> Kho Đồ (Inventory)
+              </button>
+            </div>
+
+            {/* Modal Body: KHO STAND */}
+            {storageTab === 'stands' && (
+              <div className="p-5 overflow-y-auto space-y-4">
+                {parsedStandData.slots && parsedStandData.slots.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {parsedStandData.slots.map((slot, idx) => (
+                      <div 
+                        key={idx}
+                        className={`border rounded-2xl p-4 transition-all relative overflow-hidden ${
+                          slot.is_empty 
+                            ? 'bg-[#080a0f]/40 border-white/5 opacity-60' 
+                            : 'bg-[#080a0f] border-[#6E96FF]/30 hover:border-[#6E96FF]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#949db1] bg-white/5 px-2 py-0.5 rounded-md border border-white/10">
+                            Slot {slot.slot}
+                          </span>
+                          {!slot.is_empty && (
+                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border font-mono ${getTierStyle(slot.tier)}`}>
+                              Tier: {slot.tier}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="font-extrabold text-base text-white truncate">
+                          {slot.name}
+                        </div>
+
+                        <div className="mt-2 flex items-center gap-1.5 text-xs text-[#949db1]">
+                          <Layers className="w-3.5 h-3.5 text-[#6E96FF]" />
+                          <span>Thuộc tính: <strong className="text-gray-200">{slot.attribute}</strong></span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-10 text-gray-500 font-bold text-xs">
+                    Chưa có dữ liệu kho Stand cho lượt log này.
+                  </div>
+                )}
+
+                {/* Spec Storage */}
+                <div className="bg-[#080a0f] border border-[#6E96FF]/25 rounded-2xl p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Box className="w-5 h-5 text-[#6E96FF]" />
+                    <div>
+                      <div className="text-[10px] font-bold text-[#949db1] uppercase">Spec Storage</div>
+                      <div className="text-sm font-extrabold text-white">{parsedStandData.spec_storage || 'Trống'}</div>
+                    </div>
+                  </div>
+                  <span className="text-xs bg-[#6E96FF]/10 text-[#6E96FF] border border-[#6E96FF]/30 px-2.5 py-1 rounded-lg font-mono">
+                    Active Spec
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Body: KHO ĐỒ */}
+            {storageTab === 'inventory' && (
+              <div className="p-5 overflow-y-auto">
+                {parsedInventoryData.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500 font-bold text-xs">
+                    Chưa có dữ liệu vật phẩm trong kho đồ cho lượt log này!
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {parsedInventoryData.map((item, idx) => (
+                      <div 
+                        key={idx} 
+                        className="bg-[#080a0f] border border-white/10 rounded-2xl p-3.5 flex items-center justify-between hover:border-[#6E96FF]/50 transition-all"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#6E96FF] shrink-0">
+                            <Package className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-bold text-xs sm:text-sm text-white truncate">{item.name}</div>
+                            <div className="text-[10px] text-[#949db1] font-medium">{item.type}</div>
+                          </div>
+                        </div>
+                        <div className="bg-[#6E96FF]/15 text-[#6E96FF] border border-[#6E96FF]/30 text-xs font-extrabold px-2.5 py-1 rounded-lg font-mono shrink-0">
+                          x{item.count}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-[#080a0f] border-t border-white/10 flex justify-end">
+              <button
+                onClick={() => setIsStorageModalOpen(false)}
+                className="bg-white/10 hover:bg-white/20 text-white text-xs font-bold py-2 px-5 rounded-xl transition-all cursor-pointer"
+              >
+                Đóng
+              </button>
+            </div>
+
+          </div>
         </div>
       )}
 
