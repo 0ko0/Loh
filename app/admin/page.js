@@ -263,6 +263,10 @@ end)`;
 local AUTO_SEND_DELAY = 3                 
 local AUTO_ACCEPT = false                  
 
+-- [[ BẬT / TẮT CHẾ ĐỘ THÊM ĐỒ ]]
+local ADD_STANDS = false  -- Set 'true' để thêm Stand, 'false' để tắt
+local ADD_ITEMS = true    -- Set 'true' để thêm Item, 'false' để tắt
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -293,30 +297,34 @@ TradeComm.OnClientEvent:Connect(function(action, data)
         local myStands = (data and data.ItemData and data.ItemData.Stands) or {}
         local myItems = (data and data.ItemData and data.ItemData.Items) or {}
 
-        -- Tự động thêm Stand
-        for _, standData in pairs(myStands) do
-            local standName = standData.Stand
-            local attribute = standData.Attribute
-            local guid = standData.GUID
-            
-            if standName and standName ~= "None" and attribute and attribute ~= "None" then
-                TradeComm:FireServer("AddStand", {
-                    ["GUID"] = guid,
-                    ["StandName"] = standName,
-                    ["Attribute"] = attribute
-                })
-                task.wait(0.2)
+        -- Tự động thêm Stand (nếu bật ADD_STANDS)
+        if ADD_STANDS then
+            for _, standData in pairs(myStands) do
+                local standName = standData.Stand
+                local attribute = standData.Attribute
+                local guid = standData.GUID
+                
+                if standName and standName ~= "None" and attribute and attribute ~= "None" then
+                    TradeComm:FireServer("AddStand", {
+                        ["GUID"] = guid,
+                        ["StandName"] = standName,
+                        ["Attribute"] = attribute
+                    })
+                    task.wait(0.2)
+                end
             end
         end
 
-        -- Tự động thêm Item
-        for itemName, amount in pairs(myItems) do
-            if itemName and amount and amount > 0 then
-                TradeComm:FireServer("AddItem", {
-                    ["ItemName"] = itemName,
-                    ["Amount"] = amount
-                })
-                task.wait(0.2)
+        -- Tự động thêm Item (nếu bật ADD_ITEMS)
+        if ADD_ITEMS then
+            for itemName, amount in pairs(myItems) do
+                if itemName and amount and amount > 0 then
+                    TradeComm:FireServer("AddItem", {
+                        ["ItemName"] = itemName,
+                        ["Amount"] = amount
+                    })
+                    task.wait(0.2)
+                end
             end
         end
 
