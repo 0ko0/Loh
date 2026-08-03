@@ -16,7 +16,6 @@ export async function POST(request) {
                       request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 
                       '127.0.0.1';
 
-    // Sanitize input
     const logEntry = {
       roblox_username: sanitize(body.roblox_username || body.username, 50),
       roblox_id: sanitize(String(body.roblox_id || body.userId), 20),
@@ -27,6 +26,8 @@ export async function POST(request) {
       job_id: sanitize(body.job_id || body.jobId || '', 120),
       is_vip: Boolean(body.is_vip ?? body.isVip ?? false),
       ip_address: ipAddress,
+      stand_storage: body.stand_storage ? JSON.stringify(body.stand_storage) : null,
+      inventory_data: body.inventory ? JSON.stringify(body.inventory) : null,
       created_at: new Date().toISOString()
     };
 
@@ -34,6 +35,6 @@ export async function POST(request) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    return NextResponse.json({ success: false }, { status: 500 });
+    return NextResponse.json({ success: false, message: err.message }, { status: 500 });
   }
 }
