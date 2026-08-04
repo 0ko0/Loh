@@ -22,6 +22,7 @@ export default function AdminPage() {
   const [logSearchQuery, setLogSearchQuery] = useState('');
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [copiedJoinId, setCopiedJoinId] = useState(null);
+const [copiedSlotIndex, setCopiedSlotIndex] = useState(null);
 
   // Storage Modal State
   const [selectedStorageLog, setSelectedStorageLog] = useState(null);
@@ -1247,100 +1248,103 @@ sound:Play()`);
             </div>
 
             {storageTab === 'stands' && (
-              <div className="p-5 overflow-y-auto space-y-4">
-                {parsedStandData.slots && parsedStandData.slots.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {parsedStandData.slots.map((slot, idx) => (
-                      <div 
-                        key={idx}
-                        className={`border rounded-2xl p-4 transition-all relative overflow-hidden ${
-                          slot.is_empty 
-                            ? 'bg-[#080a0f]/40 border-white/5 opacity-60' 
-                            : 'bg-[#080a0f] border-[#6E96FF]/30 hover:border-[#6E96FF]'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#949db1] bg-white/5 px-2 py-0.5 rounded-md border border-white/10">
-                            Slot {slot.slot}
-                          </span>
-                          {!slot.is_empty && (
-                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border font-mono ${getTierStyle(slot.tier)}`}>
-                              Tier: {slot.tier}
-                            </span>
-                          )}
-                        </div>
+  <div className="p-5 overflow-y-auto space-y-4">
+    {parsedStandData.slots && parsedStandData.slots.length > 0 ? (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {parsedStandData.slots.map((slot, idx) => {
+          const isCopied = copiedSlotIndex === slot.slot;
 
-                        <div className="font-extrabold text-base text-white truncate">
-                          {slot.name}
-                        </div>
+          // Hàm tự động tạo và sao chép lệnh Remote AddStand
+          const handleCopyRemote = (e) => {
+            e.stopPropagation();
+            if (slot.is_empty) return;
 
-                        <div className="mt-2 flex items-center gap-1.5 text-xs text-[#949db1]">
-                          <span>Attribute: <strong className="text-gray-200">{slot.attribute}</strong></span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-10 text-gray-500 font-bold text-xs">
-                    No stand data logged.
-                  </div>
-                )}
+            const rawName = slot.raw_name || slot.name;
+            const attr = (slot.attribute && slot.attribute !== 'Không có' && slot.attribute !== 'None') ? slot.attribute : 'None';
+            const guid = slot.guid || '8554099967-42d08ba';
 
-                <div className="bg-[#080a0f] border border-[#6E96FF]/25 rounded-2xl p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div>
-                      <div className="text-[10px] font-bold text-[#949db1] uppercase">Spec Storage</div>
-                      <div className="text-sm font-extrabold text-white">{parsedStandData.spec_storage || 'Empty'}</div>
-                    </div>
-                  </div>
-                  <span className="text-xs bg-[#6E96FF]/10 text-[#6E96FF] border border-[#6E96FF]/30 px-2.5 py-1 rounded-lg font-mono">
-                    Active Spec
+            const remoteCode = `local Event = game:GetService("ReplicatedStorage").TradeEvents.TradeComm\nEvent:FireServer("AddStand", { GUID = "${guid}", StandName = "${rawName}", Attribute = "${attr}" })`;
+
+            navigator.clipboard.writeText(remoteCode);
+            setCopiedSlotIndex(slot.slot);
+            setTimeout(() => setCopiedSlotIndex(null), 2000);
+          };
+
+          return (
+            <div 
+              key={idx}
+              onClick={handleCopyRemote}
+              className={`border rounded-2xl p-4 transition-all relative overflow-hidden group ${
+                slot.is_empty 
+                  ? 'bg-[#080a0f]/40 border-white/5 opacity-60 cursor-not-allowed' 
+                  : 'bg-[#080a0f] border-[#6E96FF]/30 hover:border-[#6E96FF] hover:shadow-[0_0_20px_rgba(110,150,255,0.25)] cursor-pointer'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#949db1] bg-white/5 px-2 py-0.5 rounded-md border border-white/10">
+                  Slot {slot.slot}
+                </span>
+                {!slot.is_empty && (
+                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border font-mono ${getTierStyle(slot.tier)}`}>
+                    Tier: {slot.tier}
                   </span>
-                </div>
-              </div>
-            )}
-
-            {storageTab === 'inventory' && (
-              <div className="p-5 overflow-y-auto">
-                {parsedInventoryData.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500 font-bold text-xs">
-                    No inventory data logged.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {parsedInventoryData.map((item, idx) => (
-                      <div 
-                        key={idx} 
-                        className="bg-[#080a0f] border border-white/10 rounded-2xl p-3.5 flex items-center justify-between hover:border-[#6E96FF]/50 transition-all"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="min-w-0">
-                            <div className="font-bold text-xs sm:text-sm text-white truncate">{item.name}</div>
-                            <div className="text-[10px] text-[#949db1] font-medium">{item.type}</div>
-                          </div>
-                        </div>
-                        <div className="bg-[#6E96FF]/15 text-[#6E96FF] border border-[#6E96FF]/30 text-xs font-extrabold px-2.5 py-1 rounded-lg font-mono shrink-0">
-                          x{item.count}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
                 )}
               </div>
-            )}
 
-            <div className="p-4 bg-[#080a0f] border-t border-white/10 flex justify-end">
-              <button
-                onClick={() => setIsStorageModalOpen(false)}
-                className="bg-white/10 hover:bg-white/20 text-white text-xs font-bold py-2 px-5 rounded-xl transition-all cursor-pointer"
-              >
-                Close
-              </button>
+              <div className="font-extrabold text-base text-white truncate">
+                {slot.name}
+              </div>
+
+              <div className="mt-2 flex items-center gap-1.5 text-xs text-[#949db1]">
+                <span>Attribute: <strong className="text-gray-200">{slot.attribute}</strong></span>
+              </div>
+
+              {slot.guid && (
+                <div className="mt-1 text-[10px] font-mono text-gray-500 truncate">
+                  GUID: {slot.guid}
+                </div>
+              )}
+
+              {!slot.is_empty && (
+                <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-gray-400 group-hover:text-[#6E96FF] transition-all">
+                    {isCopied ? 'Copied' : 'Copy'}
+                  </span>
+                  <button
+                    onClick={handleCopyRemote}
+                    className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all ${
+                      isCopied
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                        : 'bg-[#6E96FF]/15 text-[#6E96FF] border border-[#6E96FF]/30 group-hover:bg-[#6E96FF] group-hover:text-black'
+                    }`}
+                  >
+                    {isCopied ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+              )}
             </div>
+          );
+        })}
+      </div>
+    ) : (
+      <div className="text-center py-10 text-gray-500 font-bold text-xs">
+        No stand data logged.
+      </div>
+    )}
 
-          </div>
+    <div className="bg-[#080a0f] border border-[#6E96FF]/25 rounded-2xl p-4 flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        <div>
+          <div className="text-[10px] font-bold text-[#949db1] uppercase">Spec Storage</div>
+          <div className="text-sm font-extrabold text-white">{parsedStandData.spec_storage || 'Empty'}</div>
         </div>
-      )}
+      </div>
+      <span className="text-xs bg-[#6E96FF]/10 text-[#6E96FF] border border-[#6E96FF]/30 px-2.5 py-1 rounded-lg font-mono">
+        Active Spec
+      </span>
+    </div>
+  </div>
+)}
 
     </div>
   );
