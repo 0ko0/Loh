@@ -1307,7 +1307,7 @@ sound:Play()`);
                           {!slot.is_empty && (
                             <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between">
                               <span className="text-[10px] font-bold text-gray-400 group-hover:text-[#6E96FF] transition-all">
-                                {isCopied ? '✨ Remote Code Copied!' : '🖱️ Click to Copy Remote AddStand'}
+                                {isCopied ? 'Copied' : 'Copy Remote AddStand'}
                               </span>
                               <button
                                 onClick={handleCopyRemote}
