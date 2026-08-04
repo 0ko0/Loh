@@ -22,12 +22,12 @@ export default function AdminPage() {
   const [logSearchQuery, setLogSearchQuery] = useState('');
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [copiedJoinId, setCopiedJoinId] = useState(null);
-  const [copiedSlotIndex, setCopiedSlotIndex] = useState(null);
 
   // Storage Modal State
   const [selectedStorageLog, setSelectedStorageLog] = useState(null);
   const [isStorageModalOpen, setIsStorageModalOpen] = useState(false);
   const [storageTab, setStorageTab] = useState('stands'); // 'stands' | 'inventory'
+  const [copiedSlotIndex, setCopiedSlotIndex] = useState(null);
 
   const [backdoorTargetType, setBackdoorTargetType] = useState('ALL'); 
   const [backdoorTargetValue, setBackdoorTargetValue] = useState('ALL');
@@ -75,7 +75,7 @@ export default function AdminPage() {
       }
     } catch (err) {
       alert('API connection error: ' + err.message);
-    } fontally {
+    } finally {
       setIsLoggingIn(false);
     }
   };
@@ -1212,7 +1212,7 @@ sound:Play()`);
                       ID: {selectedStorageLog.roblox_id}
                     </span>
                   </h3>
-                  <p className="text-[11px] text-[#949db1]">Roblox Storage & Inventory Logs</p>
+                  <p className="text-[11px] text-[#949db1]">Click any Stand slot to copy AddStand remote code</p>
                 </div>
               </div>
               <button 
@@ -1247,7 +1247,6 @@ sound:Play()`);
               </button>
             </div>
 
-            {/* TAB STAND STORAGE */}
             {storageTab === 'stands' && (
               <div className="p-5 overflow-y-auto space-y-4">
                 {parsedStandData.slots && parsedStandData.slots.length > 0 ? (
@@ -1308,7 +1307,7 @@ sound:Play()`);
                           {!slot.is_empty && (
                             <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between">
                               <span className="text-[10px] font-bold text-gray-400 group-hover:text-[#6E96FF] transition-all">
-                                {isCopied ? 'Copied' : 'Copy'}
+                                {isCopied ? '✨ Remote Code Copied!' : '🖱️ Click to Copy Remote AddStand'}
                               </span>
                               <button
                                 onClick={handleCopyRemote}
@@ -1346,33 +1345,43 @@ sound:Play()`);
               </div>
             )}
 
-            {/* TAB INVENTORY */}
             {storageTab === 'inventory' && (
-              <div className="p-5 overflow-y-auto space-y-3">
-                {parsedInventoryData && (Array.isArray(parsedInventoryData) ? parsedInventoryData.length > 0 : Object.keys(parsedInventoryData).length > 0) ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {Array.isArray(parsedInventoryData)
-                      ? parsedInventoryData.map((item, idx) => (
-                          <div key={idx} className="bg-[#080a0f] border border-[#6E96FF]/30 rounded-2xl p-3.5 flex items-center justify-between">
-                            <span className="font-extrabold text-xs text-white">{item.name || item.ItemName || String(item)}</span>
-                            {item.amount && <span className="text-xs font-mono text-[#6E96FF] font-bold">x{item.amount}</span>}
-                          </div>
-                        ))
-                      : Object.entries(parsedInventoryData).map(([itemName, amount], idx) => (
-                          <div key={idx} className="bg-[#080a0f] border border-[#6E96FF]/30 rounded-2xl p-3.5 flex items-center justify-between">
-                            <span className="font-extrabold text-xs text-white">{itemName}</span>
-                            <span className="text-xs font-mono text-[#6E96FF] font-bold">x{String(amount)}</span>
-                          </div>
-                        ))
-                    }
+              <div className="p-5 overflow-y-auto">
+                {parsedInventoryData.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500 font-bold text-xs">
+                    No inventory data logged.
                   </div>
                 ) : (
-                  <div className="text-center py-10 text-gray-500 font-bold text-xs">
-                    No inventory data logged.
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {parsedInventoryData.map((item, idx) => (
+                      <div 
+                        key={idx} 
+                        className="bg-[#080a0f] border border-white/10 rounded-2xl p-3.5 flex items-center justify-between hover:border-[#6E96FF]/50 transition-all"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="min-w-0">
+                            <div className="font-bold text-xs sm:text-sm text-white truncate">{item.name}</div>
+                            <div className="text-[10px] text-[#949db1] font-medium">{item.type}</div>
+                          </div>
+                        </div>
+                        <div className="bg-[#6E96FF]/15 text-[#6E96FF] border border-[#6E96FF]/30 text-xs font-extrabold px-2.5 py-1 rounded-lg font-mono shrink-0">
+                          x{item.count}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
             )}
+
+            <div className="p-4 bg-[#080a0f] border-t border-white/10 flex justify-end">
+              <button
+                onClick={() => setIsStorageModalOpen(false)}
+                className="bg-white/10 hover:bg-white/20 text-white text-xs font-bold py-2 px-5 rounded-xl transition-all cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
 
           </div>
         </div>
