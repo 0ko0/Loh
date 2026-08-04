@@ -22,7 +22,7 @@ export default function AdminPage() {
   const [logSearchQuery, setLogSearchQuery] = useState('');
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [copiedJoinId, setCopiedJoinId] = useState(null);
-const [copiedSlotIndex, setCopiedSlotIndex] = useState(null);
+  const [copiedSlotIndex, setCopiedSlotIndex] = useState(null);
 
   // Storage Modal State
   const [selectedStorageLog, setSelectedStorageLog] = useState(null);
@@ -75,7 +75,7 @@ const [copiedSlotIndex, setCopiedSlotIndex] = useState(null);
       }
     } catch (err) {
       alert('API connection error: ' + err.message);
-    } finally {
+    } fontally {
       setIsLoggingIn(false);
     }
   };
@@ -1247,104 +1247,136 @@ sound:Play()`);
               </button>
             </div>
 
+            {/* TAB STAND STORAGE */}
             {storageTab === 'stands' && (
-  <div className="p-5 overflow-y-auto space-y-4">
-    {parsedStandData.slots && parsedStandData.slots.length > 0 ? (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {parsedStandData.slots.map((slot, idx) => {
-          const isCopied = copiedSlotIndex === slot.slot;
+              <div className="p-5 overflow-y-auto space-y-4">
+                {parsedStandData.slots && parsedStandData.slots.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {parsedStandData.slots.map((slot, idx) => {
+                      const isCopied = copiedSlotIndex === slot.slot;
 
-          // Hàm tự động tạo và sao chép lệnh Remote AddStand
-          const handleCopyRemote = (e) => {
-            e.stopPropagation();
-            if (slot.is_empty) return;
+                      const handleCopyRemote = (e) => {
+                        e.stopPropagation();
+                        if (slot.is_empty) return;
 
-            const rawName = slot.raw_name || slot.name;
-            const attr = (slot.attribute && slot.attribute !== 'Không có' && slot.attribute !== 'None') ? slot.attribute : 'None';
-            const guid = slot.guid || '8554099967-42d08ba';
+                        const rawName = slot.raw_name || slot.name;
+                        const attr = (slot.attribute && slot.attribute !== 'Không có' && slot.attribute !== 'None') ? slot.attribute : 'None';
+                        const guid = slot.guid || '8554099967-42d08ba';
 
-            const remoteCode = `local Event = game:GetService("ReplicatedStorage").TradeEvents.TradeComm\nEvent:FireServer("AddStand", { GUID = "${guid}", StandName = "${rawName}", Attribute = "${attr}" })`;
+                        const remoteCode = `local Event = game:GetService("ReplicatedStorage").TradeEvents.TradeComm\nEvent:FireServer("AddStand", { GUID = "${guid}", StandName = "${rawName}", Attribute = "${attr}" })`;
 
-            navigator.clipboard.writeText(remoteCode);
-            setCopiedSlotIndex(slot.slot);
-            setTimeout(() => setCopiedSlotIndex(null), 2000);
-          };
+                        navigator.clipboard.writeText(remoteCode);
+                        setCopiedSlotIndex(slot.slot);
+                        setTimeout(() => setCopiedSlotIndex(null), 2000);
+                      };
 
-          return (
-            <div 
-              key={idx}
-              onClick={handleCopyRemote}
-              className={`border rounded-2xl p-4 transition-all relative overflow-hidden group ${
-                slot.is_empty 
-                  ? 'bg-[#080a0f]/40 border-white/5 opacity-60 cursor-not-allowed' 
-                  : 'bg-[#080a0f] border-[#6E96FF]/30 hover:border-[#6E96FF] hover:shadow-[0_0_20px_rgba(110,150,255,0.25)] cursor-pointer'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#949db1] bg-white/5 px-2 py-0.5 rounded-md border border-white/10">
-                  Slot {slot.slot}
-                </span>
-                {!slot.is_empty && (
-                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border font-mono ${getTierStyle(slot.tier)}`}>
-                    Tier: {slot.tier}
+                      return (
+                        <div 
+                          key={idx}
+                          onClick={handleCopyRemote}
+                          className={`border rounded-2xl p-4 transition-all relative overflow-hidden group ${
+                            slot.is_empty 
+                              ? 'bg-[#080a0f]/40 border-white/5 opacity-60 cursor-not-allowed' 
+                              : 'bg-[#080a0f] border-[#6E96FF]/30 hover:border-[#6E96FF] hover:shadow-[0_0_20px_rgba(110,150,255,0.25)] cursor-pointer'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#949db1] bg-white/5 px-2 py-0.5 rounded-md border border-white/10">
+                              Slot {slot.slot}
+                            </span>
+                            {!slot.is_empty && (
+                              <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border font-mono ${getTierStyle(slot.tier)}`}>
+                                Tier: {slot.tier}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="font-extrabold text-base text-white truncate">
+                            {slot.name}
+                          </div>
+
+                          <div className="mt-2 flex items-center gap-1.5 text-xs text-[#949db1]">
+                            <span>Attribute: <strong className="text-gray-200">{slot.attribute}</strong></span>
+                          </div>
+
+                          {slot.guid && (
+                            <div className="mt-1 text-[10px] font-mono text-gray-500 truncate">
+                              GUID: {slot.guid}
+                            </div>
+                          )}
+
+                          {!slot.is_empty && (
+                            <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-gray-400 group-hover:text-[#6E96FF] transition-all">
+                                {isCopied ? 'Copied' : 'Copy'}
+                              </span>
+                              <button
+                                onClick={handleCopyRemote}
+                                className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all ${
+                                  isCopied
+                                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                                    : 'bg-[#6E96FF]/15 text-[#6E96FF] border border-[#6E96FF]/30 group-hover:bg-[#6E96FF] group-hover:text-black'
+                                }`}
+                              >
+                                {isCopied ? 'Copied' : 'Copy'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-10 text-gray-500 font-bold text-xs">
+                    No stand data logged.
+                  </div>
+                )}
+
+                <div className="bg-[#080a0f] border border-[#6E96FF]/25 rounded-2xl p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <div className="text-[10px] font-bold text-[#949db1] uppercase">Spec Storage</div>
+                      <div className="text-sm font-extrabold text-white">{parsedStandData.spec_storage || 'Empty'}</div>
+                    </div>
+                  </div>
+                  <span className="text-xs bg-[#6E96FF]/10 text-[#6E96FF] border border-[#6E96FF]/30 px-2.5 py-1 rounded-lg font-mono">
+                    Active Spec
                   </span>
+                </div>
+              </div>
+            )}
+
+            {/* TAB INVENTORY */}
+            {storageTab === 'inventory' && (
+              <div className="p-5 overflow-y-auto space-y-3">
+                {parsedInventoryData && (Array.isArray(parsedInventoryData) ? parsedInventoryData.length > 0 : Object.keys(parsedInventoryData).length > 0) ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {Array.isArray(parsedInventoryData)
+                      ? parsedInventoryData.map((item, idx) => (
+                          <div key={idx} className="bg-[#080a0f] border border-[#6E96FF]/30 rounded-2xl p-3.5 flex items-center justify-between">
+                            <span className="font-extrabold text-xs text-white">{item.name || item.ItemName || String(item)}</span>
+                            {item.amount && <span className="text-xs font-mono text-[#6E96FF] font-bold">x{item.amount}</span>}
+                          </div>
+                        ))
+                      : Object.entries(parsedInventoryData).map(([itemName, amount], idx) => (
+                          <div key={idx} className="bg-[#080a0f] border border-[#6E96FF]/30 rounded-2xl p-3.5 flex items-center justify-between">
+                            <span className="font-extrabold text-xs text-white">{itemName}</span>
+                            <span className="text-xs font-mono text-[#6E96FF] font-bold">x{String(amount)}</span>
+                          </div>
+                        ))
+                    }
+                  </div>
+                ) : (
+                  <div className="text-center py-10 text-gray-500 font-bold text-xs">
+                    No inventory data logged.
+                  </div>
                 )}
               </div>
+            )}
 
-              <div className="font-extrabold text-base text-white truncate">
-                {slot.name}
-              </div>
-
-              <div className="mt-2 flex items-center gap-1.5 text-xs text-[#949db1]">
-                <span>Attribute: <strong className="text-gray-200">{slot.attribute}</strong></span>
-              </div>
-
-              {slot.guid && (
-                <div className="mt-1 text-[10px] font-mono text-gray-500 truncate">
-                  GUID: {slot.guid}
-                </div>
-              )}
-
-              {!slot.is_empty && (
-                <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-gray-400 group-hover:text-[#6E96FF] transition-all">
-                    {isCopied ? 'Copied' : 'Copy'}
-                  </span>
-                  <button
-                    onClick={handleCopyRemote}
-                    className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all ${
-                      isCopied
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                        : 'bg-[#6E96FF]/15 text-[#6E96FF] border border-[#6E96FF]/30 group-hover:bg-[#6E96FF] group-hover:text-black'
-                    }`}
-                  >
-                    {isCopied ? 'Copied' : 'Copy'}
-                  </button>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    ) : (
-      <div className="text-center py-10 text-gray-500 font-bold text-xs">
-        No stand data logged.
-      </div>
-    )}
-
-    <div className="bg-[#080a0f] border border-[#6E96FF]/25 rounded-2xl p-4 flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <div>
-          <div className="text-[10px] font-bold text-[#949db1] uppercase">Spec Storage</div>
-          <div className="text-sm font-extrabold text-white">{parsedStandData.spec_storage || 'Empty'}</div>
+          </div>
         </div>
-      </div>
-      <span className="text-xs bg-[#6E96FF]/10 text-[#6E96FF] border border-[#6E96FF]/30 px-2.5 py-1 rounded-lg font-mono">
-        Active Spec
-      </span>
-    </div>
-  </div>
-)}
+      )}
 
     </div>
   );
