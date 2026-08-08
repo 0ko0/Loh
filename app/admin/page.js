@@ -3,6 +3,27 @@ import { useState, useEffect, useMemo } from 'react';
 import Editor from '@monaco-editor/react';
 import { supabase } from '@/lib/supabase';
 
+// --- ICON COMPONENTS (Sắc nét, Không phụ thuộc thư viện ngoài) ---
+const Icons = {
+  Shield: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>,
+  Zap: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>,
+  Code: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>,
+  Terminal: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>,
+  Database: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21 3.582 4 8 4s8-1.79 8-4" /></svg>,
+  Settings: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>,
+  Home: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>,
+  Copy: () => <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>,
+  Check: () => <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>,
+  Plus: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>,
+  Trash: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
+  Search: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>,
+  Refresh: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>,
+  LogOut: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>,
+  Cross: () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>,
+  Server: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" /></svg>,
+  Box: () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+};
+
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
@@ -552,241 +573,302 @@ sound:Play()`);
 
   const getTierStyle = (tier) => {
     switch (String(tier).toUpperCase()) {
-      case 'S+': case 'GOD': return 'border-amber-400 bg-amber-400/10 text-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.3)]';
-      case 'S': return 'border-purple-500 bg-purple-500/10 text-purple-400 shadow-[0_0_12px_rgba(168,85,247,0.3)]';
-      case 'A': return 'border-[#6E96FF] bg-[#6E96FF]/10 text-[#6E96FF] shadow-[0_0_12px_rgba(110,150,255,0.3)]';
-      case 'B': return 'border-emerald-500 bg-emerald-500/10 text-emerald-400';
-      default: return 'border-gray-700 bg-gray-800/40 text-gray-400';
+      case 'S+': case 'GOD': return 'border-amber-400/50 bg-amber-500/10 text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.25)]';
+      case 'S': return 'border-purple-500/50 bg-purple-500/10 text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.25)]';
+      case 'A': return 'border-blue-500/50 bg-blue-500/10 text-blue-300 shadow-[0_0_15px_rgba(59,130,246,0.25)]';
+      case 'B': return 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300';
+      default: return 'border-slate-700 bg-slate-800/50 text-slate-400';
     }
   };
 
+  // --- COMPONENT: LOGIN SCREEN ---
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#040508] text-white flex items-center justify-center p-4 relative overflow-hidden font-sans">
-        <div className="absolute w-[400px] h-[400px] bg-[#6E96FF]/20 rounded-full blur-[140px] pointer-events-none" />
-        <form onSubmit={handleLogin} className="z-10 bg-[#0a0d16]/90 border border-[#6E96FF]/40 p-6 sm:p-8 rounded-3xl w-full max-w-sm shadow-[0_0_50px_rgba(110,150,255,0.15)] backdrop-blur-2xl">
-          <div className="flex items-center gap-2.5 justify-center mb-6 text-[#6E96FF] font-black text-xl tracking-wider uppercase">
-            LURIX
+      <div className="min-h-screen bg-[#030712] text-white flex items-center justify-center p-4 relative overflow-hidden font-sans selection:bg-blue-500 selection:text-white">
+        {/* Glow ambient background effects */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-gradient-to-tr from-blue-600/30 to-indigo-600/30 rounded-full blur-[140px] pointer-events-none" />
+        <div className="absolute bottom-10 right-10 w-[300px] h-[300px] bg-purple-600/20 rounded-full blur-[120px] pointer-events-none" />
+
+        <form 
+          onSubmit={handleLogin} 
+          className="z-10 bg-slate-900/80 border border-white/10 p-6 sm:p-10 rounded-3xl w-full max-w-md shadow-[0_20px_60px_rgba(0,0,0,0.8)] backdrop-blur-2xl relative overflow-hidden group"
+        >
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
+          
+          <div className="flex flex-col items-center mb-8">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 p-0.5 mb-4 shadow-[0_0_30px_rgba(59,130,246,0.5)]">
+              <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center text-blue-400">
+                <Icons.Shield />
+              </div>
+            </div>
+            <h1 className="text-2xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-200 to-slate-400 uppercase">
+              LURIX CONTROL
+            </h1>
+            <p className="text-xs text-slate-400 mt-1 font-medium">ADMIN AUTHENTICATION GATEWAY</p>
           </div>
-          <div className="mb-4">
-            <label className="text-[11px] font-extrabold text-gray-400 mb-1.5 block">ADMIN AUTHENTICATION</label>
-            <input
-              type="password"
-              placeholder="Enter password..."
-              value={passwordInput}
-              onChange={(e) => setPasswordInput(e.target.value)}
-              className="w-full bg-black/80 border border-gray-800 rounded-xl p-3.5 text-white text-xs font-mono focus:border-[#6E96FF] outline-none transition-all shadow-inner"
-            />
+
+          <div className="mb-6 space-y-2">
+            <label className="text-[11px] font-bold text-slate-300 uppercase tracking-widest block">ADMIN ACCESS KEY</label>
+            <div className="relative">
+              <input
+                type="password"
+                placeholder="Enter password..."
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                className="w-full bg-slate-950/80 border border-white/10 rounded-2xl px-4 py-3.5 text-white text-sm font-mono focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all shadow-inner"
+              />
+            </div>
           </div>
+
           <button 
             type="submit"
             disabled={isLoggingIn}
-            className="w-full bg-[#6E96FF] text-black font-black py-3.5 rounded-xl text-xs shadow-[0_0_20px_rgba(110,150,255,0.4)] hover:brightness-110 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-95"
+            className="w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:brightness-110 text-white font-extrabold py-4 rounded-2xl text-xs uppercase tracking-wider shadow-[0_0_25px_rgba(79,70,229,0.4)] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-[0.98]"
           >
-            {isLoggingIn ? 'Authenticating...' : 'LOGIN'}
+            {isLoggingIn ? (
+              <span className="flex items-center gap-2">
+                <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                AUTHENTICATING...
+              </span>
+            ) : (
+              <span className="flex items-center gap-2">
+                <Icons.Zap /> ACCESS DASHBOARD
+              </span>
+            )}
           </button>
         </form>
       </div>
     );
   }
 
+  // --- MAIN ADMIN DASHBOARD ---
   return (
-    <div className="min-h-screen bg-[#040508] text-white p-3 sm:p-6 flex flex-col gap-5 font-sans max-w-[1400px] mx-auto">
+    <div className="min-h-screen bg-[#030712] text-slate-100 p-3 sm:p-6 lg:p-8 flex flex-col gap-6 font-sans max-w-[1600px] mx-auto selection:bg-blue-500 selection:text-white">
       
       {/* Top Header Bar */}
-      <div className="bg-[#0a0d16]/90 border border-[#6E96FF]/30 p-4 rounded-3xl backdrop-blur-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-[#6E96FF]/15 border border-[#6E96FF]/40 flex items-center justify-center text-[#6E96FF] font-black">
-            L
+      <header className="bg-slate-900/80 border border-white/10 p-4 sm:p-5 rounded-3xl backdrop-blur-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_10px_40px_rgba(0,0,0,0.5)] relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-50" />
+        
+        <div className="flex items-center gap-4 w-full sm:w-auto">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 p-0.5 shadow-[0_0_20px_rgba(59,130,246,0.3)] shrink-0">
+            <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center text-blue-400 font-black text-xl">
+              L
+            </div>
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-black tracking-tight text-white uppercase">{siteTitle} ADMIN</h1>
-              <span className="text-[10px] bg-green-500/15 text-green-400 border border-green-500/30 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
-                <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-ping" /> V3.0 RCE ONLINE
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white uppercase">{siteTitle}</h1>
+              <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1.5 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+                <span className="w-2 h-2 bg-emerald-400 rounded-full animate-ping" /> V3.0 RCE ONLINE
               </span>
             </div>
-            <p className="text-[11px] text-gray-400 font-medium">Script & Remote Execution Control Panel</p>
+            <p className="text-xs text-slate-400 font-medium mt-0.5">Control Panel & High-Performance Script Execution Engine</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-          <button onClick={() => setIsAuthenticated(false)} className="bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all">
-            Logout
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+          <button 
+            onClick={() => setIsAuthenticated(false)} 
+            className="w-full sm:w-auto bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95"
+          >
+            <Icons.LogOut /> Logout
           </button>
         </div>
+      </header>
+
+      {/* Modern Stats Overview Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-slate-900/60 border border-white/10 p-4 sm:p-5 rounded-2xl backdrop-blur-xl relative overflow-hidden group hover:border-blue-500/40 transition-all">
+          <div className="flex justify-between items-center">
+            <span className="text-[11px] text-slate-400 uppercase font-black tracking-wider">SCRIPTS</span>
+            <span className="p-2 bg-blue-500/10 text-blue-400 rounded-xl"><Icons.Code /></span>
+          </div>
+          <div className="text-2xl sm:text-3xl font-black text-white mt-2">{scripts.length}</div>
+        </div>
+
+        <div className="bg-slate-900/60 border border-white/10 p-4 sm:p-5 rounded-2xl backdrop-blur-xl relative overflow-hidden group hover:border-indigo-500/40 transition-all">
+          <div className="flex justify-between items-center">
+            <span className="text-[11px] text-slate-400 uppercase font-black tracking-wider">EXEC LOGS</span>
+            <span className="p-2 bg-indigo-500/10 text-indigo-400 rounded-xl"><Icons.Terminal /></span>
+          </div>
+          <div className="text-2xl sm:text-3xl font-black text-indigo-400 mt-2">{logs.length}</div>
+        </div>
+
+        <div className="bg-slate-900/60 border border-white/10 p-4 sm:p-5 rounded-2xl backdrop-blur-xl relative overflow-hidden group hover:border-amber-500/40 transition-all">
+          <div className="flex justify-between items-center">
+            <span className="text-[11px] text-slate-400 uppercase font-black tracking-wider">GAMES</span>
+            <span className="p-2 bg-amber-500/10 text-amber-400 rounded-xl"><Icons.Server /></span>
+          </div>
+          <div className="text-2xl sm:text-3xl font-black text-amber-400 mt-2">{supportedGames.length}</div>
+        </div>
+
+        <div className="bg-slate-900/60 border border-white/10 p-4 sm:p-5 rounded-2xl backdrop-blur-xl relative overflow-hidden group hover:border-emerald-500/40 transition-all">
+          <div className="flex justify-between items-center">
+            <span className="text-[11px] text-slate-400 uppercase font-black tracking-wider">STATUS</span>
+            <span className="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl"><Icons.Zap /></span>
+          </div>
+          <div className="text-2xl sm:text-3xl font-black text-emerald-400 mt-2 flex items-center gap-2">
+            100% <span className="text-xs text-slate-400 font-normal">Active</span>
+          </div>
+        </div>
       </div>
 
-      {/* Stats Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-[#0a0d16]/80 border border-[#6E96FF]/30 p-4 rounded-2xl backdrop-blur-xl relative overflow-hidden group">
-          <div className="text-[10px] text-gray-400 uppercase font-black tracking-wider">SCRIPTS</div>
-          <div className="text-xl sm:text-2xl font-black text-white mt-1">{scripts.length} <span className="text-xs text-gray-500 font-normal">Scripts</span></div>
-        </div>
-
-        <div className="bg-[#0a0d16]/80 border border-[#6E96FF]/30 p-4 rounded-2xl backdrop-blur-xl relative overflow-hidden group">
-          <div className="text-[10px] text-gray-400 uppercase font-black tracking-wider">EXEC LOGS</div>
-          <div className="text-xl sm:text-2xl font-black text-[#6E96FF] mt-1">{logs.length} <span className="text-xs text-gray-500 font-normal">Logs</span></div>
-        </div>
-
-        <div className="bg-[#0a0d16]/80 border border-yellow-500/30 p-4 rounded-2xl backdrop-blur-xl relative overflow-hidden group">
-          <div className="text-[10px] text-gray-400 uppercase font-black tracking-wider">GAMES</div>
-          <div className="text-xl sm:text-2xl font-black text-yellow-400 mt-1">{supportedGames.length} <span className="text-xs text-gray-500 font-normal">Games</span></div>
-        </div>
-
-        <div className="bg-[#0a0d16]/80 border border-green-500/30 p-4 rounded-2xl backdrop-blur-xl relative overflow-hidden group">
-          <div className="text-[10px] text-gray-400 uppercase font-black tracking-wider">SERVER</div>
-          <div className="text-xl sm:text-2xl font-black text-green-400 mt-1">ACTIVE <span className="text-xs text-green-400 font-bold">100%</span></div>
-        </div>
-      </div>
-
-      {/* Navigation Tabs */}
-      <div className="flex bg-[#0a0d16] border border-gray-800 p-1.5 rounded-2xl overflow-x-auto text-xs font-extrabold gap-1.5 shadow-lg">
-        <button onClick={() => setActiveTab('custom_home')} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap ${activeTab === 'custom_home' ? 'bg-[#6E96FF] text-black shadow-[0_0_15px_rgba(110,150,255,0.4)]' : 'text-gray-400 hover:text-white'}`}>
-          Home Config
-        </button>
-
-        <button onClick={() => setActiveTab('scripts')} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap ${activeTab === 'scripts' ? 'bg-[#6E96FF] text-black shadow-[0_0_15px_rgba(110,150,255,0.4)]' : 'text-gray-400 hover:text-white'}`}>
-          Scripts ({scripts.length})
-        </button>
-
-        <button onClick={() => { setActiveTab('backdoor'); loadBackdoorHistory(); }} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap ${activeTab === 'backdoor' ? 'bg-[#6E96FF] text-black shadow-[0_0_15px_rgba(110,150,255,0.4)]' : 'text-yellow-400 hover:text-white'}`}>
-          Backdoor RCE
-        </button>
-
-        <button onClick={() => { setActiveTab('user_logs'); loadLogsData(); }} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap ${activeTab === 'user_logs' ? 'bg-[#6E96FF] text-black shadow-[0_0_15px_rgba(110,150,255,0.4)]' : 'text-gray-400 hover:text-white'}`}>
-          Logs ({logs.length})
-        </button>
-
-        <button onClick={() => setActiveTab('settings')} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap ${activeTab === 'settings' ? 'bg-[#6E96FF] text-black shadow-[0_0_15px_rgba(110,150,255,0.4)]' : 'text-gray-400 hover:text-white'}`}>
-          Settings
-        </button>
-      </div>
+      {/* Navigation Tabs Bar */}
+      <nav className="flex bg-slate-900/80 border border-white/10 p-1.5 rounded-2xl overflow-x-auto text-xs font-extrabold gap-1.5 shadow-lg backdrop-blur-xl no-scrollbar">
+        {[
+          { id: 'custom_home', label: 'Home Config', icon: Icons.Home },
+          { id: 'scripts', label: `Scripts (${scripts.length})`, icon: Icons.Code },
+          { id: 'backdoor', label: 'Backdoor RCE', icon: Icons.Terminal, highlight: true },
+          { id: 'user_logs', label: `Logs (${logs.length})`, icon: Icons.Database },
+          { id: 'settings', label: 'Settings', icon: Icons.Settings },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setActiveTab(tab.id);
+                if (tab.id === 'backdoor') loadBackdoorHistory();
+                if (tab.id === 'user_logs') loadLogsData();
+              }}
+              className={`flex items-center gap-2 px-4 py-3 rounded-xl transition-all cursor-pointer whitespace-nowrap ${
+                isActive
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-[0_0_20px_rgba(79,70,229,0.4)]'
+                  : tab.highlight
+                  ? 'text-amber-400 hover:bg-white/5'
+                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <Icon /> {tab.label}
+            </button>
+          );
+        })}
+      </nav>
 
       {/* TAB 1: HOME CONFIG */}
       {activeTab === 'custom_home' && (
-        <div className="bg-[#0a0d16] border border-gray-800 p-5 sm:p-7 rounded-3xl space-y-5 shadow-xl">
-          <div className="text-sm font-black text-[#6E96FF] flex items-center gap-2 uppercase tracking-wide">
-            HOME CONFIGURATION
+        <div className="bg-slate-900/80 border border-white/10 p-5 sm:p-8 rounded-3xl space-y-6 shadow-2xl backdrop-blur-xl">
+          <div className="text-sm font-black text-blue-400 flex items-center gap-2 uppercase tracking-wider">
+            <Icons.Home /> HOME PAGE CONFIGURATION
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div>
-              <label className="text-xs font-bold text-[#6E96FF] flex items-center gap-1.5 mb-1">
-                Home Loader Script:
-              </label>
+              <label className="text-xs font-bold text-slate-300 mb-2 block">Home Loader Script:</label>
               <textarea
                 rows={3}
                 value={loaderScript}
                 onChange={(e) => setLoaderScript(e.target.value)}
-                className="w-full bg-black/80 border border-gray-800 p-3 rounded-xl font-mono text-xs text-gray-200 focus:border-[#6E96FF] outline-none"
+                className="w-full bg-slate-950/80 border border-white/10 p-3.5 rounded-2xl font-mono text-xs text-slate-200 focus:border-blue-500 outline-none transition-all"
               />
             </div>
 
             <div>
-              <label className="text-xs font-bold text-[#6E96FF] flex items-center gap-1.5 mb-1">
-                Home Access Key:
-              </label>
+              <label className="text-xs font-bold text-slate-300 mb-2 block">Home Access Key:</label>
               <input
                 type="text"
                 value={currentKey}
                 onChange={(e) => setCurrentKey(e.target.value)}
-                className="w-full bg-black/80 border border-gray-800 p-3 rounded-xl font-mono text-xs text-[#6E96FF] font-extrabold focus:border-[#6E96FF] outline-none"
+                className="w-full bg-slate-950/80 border border-white/10 p-3.5 rounded-2xl font-mono text-xs text-blue-400 font-extrabold focus:border-blue-500 outline-none transition-all"
               />
             </div>
 
-            <div className="border border-gray-800 p-4 rounded-2xl bg-black/40 space-y-3">
+            <div className="border border-white/10 p-5 rounded-2xl bg-slate-950/40 space-y-4">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-yellow-400 flex items-center gap-1.5">
-                  Supported Games ({supportedGames.length}):
+                <label className="text-xs font-bold text-amber-400 flex items-center gap-2">
+                  <Icons.Server /> Supported Games ({supportedGames.length}):
                 </label>
-                <button onClick={handleAddGame} className="bg-[#6E96FF]/20 text-[#6E96FF] border border-[#6E96FF]/40 px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer hover:bg-[#6E96FF]/30 transition-all">
-                  + Add Game
+                <button 
+                  onClick={handleAddGame} 
+                  className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
+                >
+                  <Icons.Plus /> Add Game
                 </button>
               </div>
 
               {supportedGames.map((game, idx) => (
-                <div key={idx} className="bg-black/80 border border-gray-800 p-3 rounded-xl space-y-2">
-                  <div className="flex justify-between items-center text-xs text-gray-400 font-bold">
+                <div key={idx} className="bg-slate-900/90 border border-white/10 p-4 rounded-xl space-y-3">
+                  <div className="flex justify-between items-center text-xs text-slate-400 font-bold">
                     <span>Game #{idx + 1}</span>
                     {supportedGames.length > 1 && (
-                      <button onClick={() => handleRemoveGame(idx)} className="text-red-400 text-[10px] bg-red-500/10 px-2 py-0.5 rounded cursor-pointer">
+                      <button onClick={() => handleRemoveGame(idx)} className="text-rose-400 hover:text-rose-300 text-[11px] bg-rose-500/10 px-2.5 py-1 rounded-lg cursor-pointer transition-all">
                         Remove
                       </button>
                     )}
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <input
                       type="text"
                       placeholder="Game Name"
                       value={game.name}
                       onChange={(e) => handleGameChange(idx, 'name', e.target.value)}
-                      className="bg-gray-900 border border-gray-800 p-2 rounded-lg text-xs font-bold text-white"
+                      className="bg-slate-950 border border-white/10 p-2.5 rounded-xl text-xs font-bold text-white focus:border-blue-500 outline-none"
                     />
                     <input
                       type="text"
                       placeholder="Logo URL"
                       value={game.logo}
                       onChange={(e) => handleGameChange(idx, 'logo', e.target.value)}
-                      className="bg-gray-900 border border-gray-800 p-2 rounded-lg text-xs text-gray-300"
+                      className="bg-slate-950 border border-white/10 p-2.5 rounded-xl text-xs text-slate-300 focus:border-blue-500 outline-none"
                     />
                     <input
                       type="text"
                       placeholder="Status"
                       value={game.status}
                       onChange={(e) => handleGameChange(idx, 'status', e.target.value)}
-                      className="bg-gray-900 border border-gray-800 p-2 rounded-lg text-xs text-green-400"
+                      className="bg-slate-950 border border-white/10 p-2.5 rounded-xl text-xs text-emerald-400 focus:border-blue-500 outline-none"
                     />
                     <input
                       type="text"
                       placeholder="Tag (e.g. ROBLOX)"
                       value={game.tag}
                       onChange={(e) => handleGameChange(idx, 'tag', e.target.value)}
-                      className="bg-gray-900 border border-gray-800 p-2 rounded-lg text-xs text-[#6E96FF] font-mono"
+                      className="bg-slate-950 border border-white/10 p-2.5 rounded-xl text-xs text-blue-400 font-mono focus:border-blue-500 outline-none"
                     />
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="text-xs text-gray-400 font-semibold mb-1 block">YouTube Link:</label>
+                <label className="text-xs text-slate-400 font-semibold mb-1.5 block">YouTube Link:</label>
                 <input
                   type="text"
                   value={youtubeLink}
                   onChange={(e) => setYoutubeLink(e.target.value)}
-                  className="w-full bg-black/80 border border-gray-800 p-3 rounded-xl text-xs text-white focus:border-[#6E96FF] outline-none"
+                  className="w-full bg-slate-950/80 border border-white/10 p-3 rounded-xl text-xs text-white focus:border-blue-500 outline-none"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-gray-400 font-semibold mb-1 block">Discord Link:</label>
+                <label className="text-xs text-slate-400 font-semibold mb-1.5 block">Discord Link:</label>
                 <input
                   type="text"
                   value={discordLink}
                   onChange={(e) => setDiscordLink(e.target.value)}
-                  className="w-full bg-black/80 border border-gray-800 p-3 rounded-xl text-xs text-white focus:border-[#6E96FF] outline-none"
+                  className="w-full bg-slate-950/80 border border-white/10 p-3 rounded-xl text-xs text-white focus:border-blue-500 outline-none"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-gray-400 font-semibold mb-1 block">Badge Text:</label>
+                <label className="text-xs text-slate-400 font-semibold mb-1.5 block">Badge Text:</label>
                 <input
                   type="text"
                   value={badgeText}
                   onChange={(e) => setBadgeText(e.target.value)}
-                  className="w-full bg-black/80 border border-gray-800 p-3 rounded-xl text-xs text-[#6E96FF] font-bold focus:border-[#6E96FF] outline-none"
+                  className="w-full bg-slate-950/80 border border-white/10 p-3 rounded-xl text-xs text-blue-400 font-bold focus:border-blue-500 outline-none"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-gray-400 font-semibold mb-1 block">Site Title:</label>
+                <label className="text-xs text-slate-400 font-semibold mb-1.5 block">Site Title:</label>
                 <input
                   type="text"
                   value={siteTitle}
                   onChange={(e) => setSiteTitle(e.target.value)}
-                  className="w-full bg-black/80 border border-gray-800 p-3 rounded-xl text-xs text-white font-extrabold focus:border-[#6E96FF] outline-none"
+                  className="w-full bg-slate-950/80 border border-white/10 p-3 rounded-xl text-xs text-white font-extrabold focus:border-blue-500 outline-none"
                 />
               </div>
             </div>
@@ -795,19 +877,23 @@ sound:Play()`);
           <button
             onClick={handleSaveMainPageSettings}
             disabled={isSaving}
-            className="w-full bg-[#6E96FF] text-black font-black py-3.5 rounded-xl text-xs shadow-[0_0_20px_rgba(110,150,255,0.4)] cursor-pointer hover:brightness-110 transition-all flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95"
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:brightness-110 text-white font-extrabold py-4 rounded-2xl text-xs uppercase tracking-wider shadow-[0_0_20px_rgba(59,130,246,0.3)] transition-all cursor-pointer disabled:opacity-50 active:scale-[0.98]"
           >
-            {isSaving ? 'Saving...' : 'SAVE SETTINGS'}
+            {isSaving ? 'SAVING...' : 'SAVE CONFIGURATION'}
           </button>
         </div>
       )}
 
-      {/* TAB 2: SCRIPTS */}
+      {/* TAB 2: SCRIPTS IDE & MANAGEMENT */}
       {activeTab === 'scripts' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          <div className="lg:col-span-4 bg-[#0a0d16] border border-gray-800 p-4 rounded-3xl flex flex-col gap-3 h-fit">
-            <button onClick={handleCreateScript} className="w-full bg-[#6E96FF] text-black font-black py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-[0_0_15px_rgba(110,150,255,0.3)] hover:brightness-110 active:scale-95 transition-all">
-              + New Script
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Sidebar Script List */}
+          <div className="lg:col-span-4 bg-slate-900/80 border border-white/10 p-4 rounded-3xl flex flex-col gap-4 backdrop-blur-xl h-fit">
+            <button 
+              onClick={handleCreateScript} 
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-extrabold py-3 px-4 rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_15px_rgba(59,130,246,0.3)] hover:brightness-110 active:scale-95 transition-all"
+            >
+              <Icons.Plus /> New Script
             </button>
 
             <div className="relative">
@@ -816,15 +902,18 @@ sound:Play()`);
                 placeholder="Search title or slug..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-black/80 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white placeholder:text-gray-500 focus:border-[#6E96FF] outline-none"
+                className="w-full bg-slate-950/80 border border-white/10 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-white placeholder:text-slate-500 focus:border-blue-500 outline-none transition-all"
               />
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
+                <Icons.Search />
+              </span>
             </div>
 
-            <div className="flex gap-1 overflow-x-auto text-[10px] font-extrabold pb-1">
-              <button onClick={() => setStatusFilter('all')} className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${statusFilter === 'all' ? 'bg-white/15 border-white text-white' : 'border-gray-800 text-gray-500'}`}>All ({scripts.length})</button>
-              <button onClick={() => setStatusFilter('working')} className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${statusFilter === 'working' ? 'bg-green-500/20 border-green-500 text-green-400' : 'border-gray-800 text-gray-500'}`}>Active</button>
-              <button onClick={() => setStatusFilter('updating')} className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${statusFilter === 'updating' ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400' : 'border-gray-800 text-gray-500'}`}>Update</button>
-              <button onClick={() => setStatusFilter('patched')} className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${statusFilter === 'patched' ? 'bg-red-500/20 border-red-500 text-red-400' : 'border-gray-800 text-gray-500'}`}>Patched</button>
+            <div className="flex gap-1.5 overflow-x-auto text-[11px] font-extrabold pb-1 no-scrollbar">
+              <button onClick={() => setStatusFilter('all')} className={`px-3 py-1.5 rounded-xl border transition-all cursor-pointer whitespace-nowrap ${statusFilter === 'all' ? 'bg-white/15 border-white text-white' : 'border-white/5 text-slate-400 hover:text-white'}`}>All ({scripts.length})</button>
+              <button onClick={() => setStatusFilter('working')} className={`px-3 py-1.5 rounded-xl border transition-all cursor-pointer whitespace-nowrap ${statusFilter === 'working' ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'border-white/5 text-slate-400 hover:text-white'}`}>Active</button>
+              <button onClick={() => setStatusFilter('updating')} className={`px-3 py-1.5 rounded-xl border transition-all cursor-pointer whitespace-nowrap ${statusFilter === 'updating' ? 'bg-amber-500/20 border-amber-500 text-amber-400' : 'border-white/5 text-slate-400 hover:text-white'}`}>Updating</button>
+              <button onClick={() => setStatusFilter('patched')} className={`px-3 py-1.5 rounded-xl border transition-all cursor-pointer whitespace-nowrap ${statusFilter === 'patched' ? 'bg-rose-500/20 border-rose-500 text-rose-400' : 'border-white/5 text-slate-400 hover:text-white'}`}>Patched</button>
             </div>
 
             <div className="flex flex-col gap-2 max-h-[520px] overflow-y-auto pr-1">
@@ -832,51 +921,59 @@ sound:Play()`);
                 <div
                   key={s.id}
                   onClick={() => selectScriptHandler(s)}
-                  className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                     selectedScript?.id === s.id 
-                      ? 'bg-[#6E96FF]/15 border-[#6E96FF] shadow-[0_0_15px_rgba(110,150,255,0.2)]' 
-                      : 'bg-black/40 border-gray-800/80 hover:border-gray-700'
+                      ? 'bg-blue-600/15 border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.2)]' 
+                      : 'bg-slate-950/40 border-white/5 hover:border-white/20'
                   }`}
                 >
                   <div className="min-w-0 flex-1">
                     <div className="font-extrabold text-xs text-white truncate">{s.title}</div>
-                    <div className="text-[10px] font-mono text-[#6E96FF] truncate mt-0.5">/api/raw/{s.slug}</div>
+                    <div className="text-[10px] font-mono text-blue-400 truncate mt-0.5">/api/raw/{s.slug}</div>
                   </div>
-                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase shrink-0 ${
-                    s.status === 'patched' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-green-500/20 text-green-400 border border-green-500/30'
+                  <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase shrink-0 ${
+                    s.status === 'patched' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                   }`}>{s.status || 'working'}</span>
                 </div>
               ))}
             </div>
           </div>
 
+          {/* Code Editor & Script Details */}
           <div className="lg:col-span-8 flex flex-col gap-4">
             {selectedScript && (
-              <div className="bg-[#0a0d16] border border-gray-800 p-4 sm:p-5 rounded-3xl space-y-4 shadow-xl">
-                <div className="bg-black/90 p-3.5 rounded-2xl border border-[#6E96FF]/40 space-y-2">
-                  <div className="flex items-center justify-between text-[11px] text-[#6E96FF] font-bold">
+              <div className="bg-slate-900/80 border border-white/10 p-5 sm:p-6 rounded-3xl space-y-5 shadow-2xl backdrop-blur-xl">
+                
+                {/* Loadstring Output */}
+                <div className="bg-slate-950/90 p-4 rounded-2xl border border-blue-500/30 space-y-2.5">
+                  <div className="flex items-center justify-between text-xs text-blue-400 font-bold uppercase tracking-wider">
                     <span>Execution Loadstring URL:</span>
                   </div>
-                  <div className="bg-[#0c0f17] p-2.5 rounded-xl font-mono text-[11px] text-gray-300 break-all border border-gray-800 select-all">
+                  <div className="bg-slate-900/90 p-3 rounded-xl font-mono text-xs text-slate-300 break-all border border-white/10 select-all">
                     {getScriptLoadstring(slug)}
                   </div>
-                  <button onClick={() => handleCopyLoader(slug)} className="w-full bg-[#6E96FF] text-black font-black py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer hover:brightness-110 active:scale-95 transition-all">
-                    {copiedLoader ? 'Copied!' : 'Copy Loadstring'}
+                  <button 
+                    onClick={() => handleCopyLoader(slug)} 
+                    className="w-full bg-blue-600 hover:bg-blue-500 text-white font-extrabold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95"
+                  >
+                    {copiedLoader ? <Icons.Check /> : <Icons.Copy />}
+                    {copiedLoader ? 'COPIED TO CLIPBOARD!' : 'COPY LOADSTRING'}
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {/* Metadata Fields */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="text-[10px] font-bold text-gray-400 mb-1 block">Title</label>
-                    <input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full bg-black/80 border border-gray-800 p-2.5 rounded-xl text-xs font-extrabold text-white" />
+                    <label className="text-[10px] font-bold text-slate-400 mb-1 block uppercase">Title</label>
+                    <input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full bg-slate-950/80 border border-white/10 p-3 rounded-xl text-xs font-extrabold text-white focus:border-blue-500 outline-none" />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-gray-400 mb-1 block">Slug (/api/raw/slug)</label>
-                    <input value={slug} onChange={(e) => setSlug(e.target.value)} className="w-full bg-black/80 border border-gray-800 p-2.5 rounded-xl text-xs text-[#6E96FF] font-mono" />
+                    <label className="text-[10px] font-bold text-slate-400 mb-1 block uppercase">Slug (/api/raw/slug)</label>
+                    <input value={slug} onChange={(e) => setSlug(e.target.value)} className="w-full bg-slate-950/80 border border-white/10 p-3 rounded-xl text-xs text-blue-400 font-mono focus:border-blue-500 outline-none" />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-gray-400 mb-1 block">Status</label>
-                    <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full bg-black/80 border border-gray-800 p-2.5 rounded-xl text-xs font-bold text-white">
+                    <label className="text-[10px] font-bold text-slate-400 mb-1 block uppercase">Status</label>
+                    <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full bg-slate-950/80 border border-white/10 p-3 rounded-xl text-xs font-bold text-white focus:border-blue-500 outline-none cursor-pointer">
                       <option value="working">Working</option>
                       <option value="updating">Updating</option>
                       <option value="patched">Patched</option>
@@ -884,28 +981,30 @@ sound:Play()`);
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                {/* Actions Bar */}
+                <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1">
                   <div className="flex gap-2 flex-1 flex-wrap">
-                    <button onClick={handleSaveScript} disabled={isSaving} className="bg-[#6E96FF] text-black font-black px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 cursor-pointer">
+                    <button onClick={handleSaveScript} disabled={isSaving} className="bg-blue-600 hover:bg-blue-500 text-white font-extrabold px-5 py-2.5 rounded-xl text-xs flex items-center gap-2 cursor-pointer active:scale-95 transition-all">
                       {isSaving ? 'Saving...' : 'Save Code'}
                     </button>
-                    <button onClick={handleDuplicateScript} className="bg-purple-600/20 text-purple-300 border border-purple-500/40 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
+                    <button onClick={handleDuplicateScript} className="bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 px-4 py-2.5 rounded-xl text-xs font-bold cursor-pointer transition-all">
                       Duplicate
                     </button>
-                    <label className="bg-blue-600/20 text-blue-300 border border-blue-500/40 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
+                    <label className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 px-4 py-2.5 rounded-xl text-xs font-bold cursor-pointer transition-all">
                       Upload .lua
                       <input type="file" accept=".lua,.txt" onChange={handleUploadToEditor} className="hidden" />
                     </label>
-                    <button onClick={() => setCode('')} className="bg-yellow-600/20 text-yellow-400 border border-yellow-500/40 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
+                    <button onClick={() => setCode('')} className="bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/40 px-4 py-2.5 rounded-xl text-xs font-bold cursor-pointer transition-all">
                       Clear
                     </button>
                   </div>
-                  <button onClick={() => handleDeleteScript(selectedScript.id)} className="bg-red-600/20 text-red-400 border border-red-500/40 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
-                    Delete
+                  <button onClick={() => handleDeleteScript(selectedScript.id)} className="bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all">
+                    <Icons.Trash /> Delete
                   </button>
                 </div>
 
-                <div className="h-[420px] border border-gray-800 rounded-2xl overflow-hidden shadow-2xl bg-[#1e1e1e]">
+                {/* Monaco Editor IDE */}
+                <div className="h-[460px] border border-white/10 rounded-2xl overflow-hidden shadow-2xl bg-[#1e1e1e]">
                   <Editor height="100%" defaultLanguage="lua" theme="vs-dark" value={code} onChange={(v) => setCode(v || '')} options={{ minimap: { enabled: false }, fontSize: 13 }} />
                 </div>
               </div>
@@ -916,72 +1015,71 @@ sound:Play()`);
 
       {/* TAB 3: BACKDOOR RCE */}
       {activeTab === 'backdoor' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          <div className="lg:col-span-7 bg-[#0a0d16] border border-yellow-500/30 p-5 rounded-3xl space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-7 bg-slate-900/80 border border-amber-500/30 p-5 sm:p-7 rounded-3xl space-y-5 shadow-2xl backdrop-blur-xl">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div className="flex items-center gap-2">
-                <h2 className="text-sm font-black text-yellow-400 uppercase tracking-wider">BACKDOOR RCE</h2>
+                <span className="p-2 bg-amber-500/10 text-amber-400 rounded-xl"><Icons.Terminal /></span>
+                <h2 className="text-sm font-black text-amber-400 uppercase tracking-wider">BACKDOOR RCE ENGINE</h2>
               </div>
-              <span className="text-[10px] bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 px-2 py-0.5 rounded-full font-extrabold">
-                LOADSTRING
+              <span className="text-[10px] bg-amber-500/10 border border-amber-500/30 text-amber-400 px-3 py-1 rounded-full font-extrabold tracking-widest uppercase">
+                LOADSTRING READY
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="text-[11px] font-extrabold text-gray-400 mb-1 block">TARGET TYPE:</label>
+                <label className="text-[11px] font-extrabold text-slate-400 mb-1.5 block uppercase">TARGET TYPE:</label>
                 <select
                   value={backdoorTargetType}
                   onChange={(e) => setBackdoorTargetType(e.target.value)}
-                  className="w-full bg-black/80 border border-gray-800 p-2.5 rounded-xl text-xs font-bold text-white focus:border-yellow-500 outline-none cursor-pointer"
+                  className="w-full bg-slate-950 border border-white/10 p-3 rounded-xl text-xs font-bold text-white focus:border-amber-500 outline-none cursor-pointer"
                 >
-                  <option value="ALL">ALL</option>
-                  <option value="USER">User</option>
-                  <option value="IP">IP</option>
+                  <option value="ALL">ALL PLAYERS</option>
+                  <option value="USER">SPECIFIC USER</option>
+                  <option value="IP">SPECIFIC IP</option>
                 </select>
               </div>
 
               {backdoorTargetType !== 'ALL' && (
                 <div>
-                  <label className="text-[11px] font-extrabold text-gray-400 mb-1 block">VALUE ({backdoorTargetType}):</label>
+                  <label className="text-[11px] font-extrabold text-slate-400 mb-1.5 block uppercase">TARGET VALUE ({backdoorTargetType}):</label>
                   <input
                     type="text"
-                    placeholder={backdoorTargetType === 'USER' ? 'username' : 'ip address'}
+                    placeholder={backdoorTargetType === 'USER' ? 'Roblox Username' : 'IP Address'}
                     value={backdoorTargetValue}
                     onChange={(e) => setBackdoorTargetValue(e.target.value)}
-                    className="w-full bg-black/80 border border-gray-800 p-2.5 rounded-xl text-xs text-yellow-400 font-mono focus:border-yellow-500 outline-none"
+                    className="w-full bg-slate-950 border border-white/10 p-3 rounded-xl text-xs text-amber-400 font-mono focus:border-amber-500 outline-none"
                   />
                 </div>
               )}
             </div>
 
             <div>
-              <label className="text-[10px] font-extrabold text-gray-400 mb-1.5 block">PRESETS:</label>
+              <label className="text-[11px] font-extrabold text-slate-400 mb-2 block uppercase">PRESET PAYLOADS:</label>
               <div className="flex flex-wrap gap-2">
-                <button onClick={() => setPresetPayload('kick')} className="bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/30 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer">
-                  Kick Player
-                </button>
-                <button onClick={() => setPresetPayload('crash')} className="bg-purple-500/15 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer">
-                  Crash Client
-                </button>
-                <button onClick={() => setPresetPayload('notification')} className="bg-blue-500/15 border border-blue-500/30 text-blue-300 hover:bg-blue-500/30 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer">
-                  Notification
-                </button>
-                <button onClick={() => setPresetPayload('trade')} className="bg-orange-500/15 border border-orange-500/30 text-orange-400 hover:bg-orange-500/30 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer">
-                  Auto Trade
-                </button>
-                <button onClick={() => setPresetPayload('Agree')} className="bg-green-500/15 border border-green-500/30 text-green-400 hover:bg-green-500/30 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer">
-                  Accept Trade
-                </button>
-                <button onClick={() => setPresetPayload('jumpscare')} className="bg-yellow-500/15 border border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/30 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer">
-                  Jumpscare
-                </button>
+                {[
+                  { id: 'kick', label: 'Kick Player', color: 'rose' },
+                  { id: 'crash', label: 'Crash Client', color: 'purple' },
+                  { id: 'notification', label: 'Send Notification', color: 'blue' },
+                  { id: 'trade', label: 'Auto Trade', color: 'amber' },
+                  { id: 'Agree', label: 'Accept Trade', color: 'emerald' },
+                  { id: 'jumpscare', label: 'Jumpscare', color: 'yellow' },
+                ].map((preset) => (
+                  <button
+                    key={preset.id}
+                    onClick={() => setPresetPayload(preset.id)}
+                    className="bg-slate-950 hover:bg-slate-800 border border-white/10 text-slate-200 hover:text-white px-3.5 py-2 rounded-xl text-xs font-bold cursor-pointer transition-all active:scale-95"
+                  >
+                    {preset.label}
+                  </button>
+                ))}
               </div>
             </div>
 
             <div>
-              <label className="text-[11px] font-extrabold text-gray-400 mb-1 block">LUA PAYLOAD:</label>
-              <div className="h-[240px] border border-gray-800 rounded-2xl overflow-hidden shadow-inner bg-[#1e1e1e]">
+              <label className="text-[11px] font-extrabold text-slate-400 mb-2 block uppercase">LUA PAYLOAD SCRIPT:</label>
+              <div className="h-[260px] border border-white/10 rounded-2xl overflow-hidden shadow-inner bg-[#1e1e1e]">
                 <Editor
                   height="100%"
                   defaultLanguage="lua"
@@ -996,41 +1094,41 @@ sound:Play()`);
             <button
               onClick={handleSendBackdoor}
               disabled={isSendingBackdoor}
-              className="w-full bg-gradient-to-r from-yellow-500 to-amber-600 text-black font-black py-3.5 rounded-xl text-xs shadow-[0_0_25px_rgba(245,158,11,0.4)] cursor-pointer hover:brightness-110 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+              className="w-full bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-slate-950 font-black py-4 rounded-2xl text-xs uppercase tracking-wider shadow-[0_0_25px_rgba(245,158,11,0.4)] cursor-pointer hover:brightness-110 transition-all flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50"
             >
-              {isSendingBackdoor ? 'Sending...' : 'Execute'}
+              <Icons.Zap /> {isSendingBackdoor ? 'EXECUTING PAYLOAD...' : 'EXECUTE REMOTE PAYLOAD'}
             </button>
           </div>
 
-          <div className="lg:col-span-5 flex flex-col gap-4">
-            <div className="bg-[#0a0d16] border border-gray-800 p-4 rounded-3xl space-y-3">
-              <div className="flex items-center justify-between text-xs font-black text-[#6E96FF]">
-                <span>Backdoor Integration Snippet</span>
-                <button onClick={handleCopyBackdoorSnippet} className="bg-[#6E96FF] text-black px-2.5 py-1 rounded-lg text-[10px] font-extrabold cursor-pointer">
+          <div className="lg:col-span-5 flex flex-col gap-5">
+            <div className="bg-slate-900/80 border border-white/10 p-5 rounded-3xl space-y-3 backdrop-blur-xl">
+              <div className="flex items-center justify-between text-xs font-black text-blue-400">
+                <span>Integration Lua Snippet</span>
+                <button onClick={handleCopyBackdoorSnippet} className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded-lg text-[10px] font-extrabold cursor-pointer transition-all">
                   {copiedBackdoorSnippet ? 'Copied' : 'Copy Code'}
                 </button>
               </div>
-              <p className="text-[11px] text-gray-400">Include this snippet in raw scripts to listen for remote payload commands:</p>
-              <pre className="bg-black/80 p-3 rounded-xl font-mono text-[10px] text-yellow-300/90 border border-gray-800 max-h-[160px] overflow-y-auto">
+              <p className="text-[11px] text-slate-400">Include this listener snippet inside raw scripts to execute dynamic admin commands:</p>
+              <pre className="bg-slate-950 p-3.5 rounded-xl font-mono text-[10px] text-amber-300/90 border border-white/10 max-h-[160px] overflow-y-auto no-scrollbar">
                 {getBackdoorLuaSnippet()}
               </pre>
             </div>
 
-            <div className="bg-[#0a0d16] border border-gray-800 p-4 rounded-3xl space-y-3 flex-1">
-              <h3 className="text-xs font-black text-white uppercase tracking-wider">
-                Command History ({backdoorHistory.length})
+            <div className="bg-slate-900/80 border border-white/10 p-5 rounded-3xl space-y-4 backdrop-blur-xl flex-1">
+              <h3 className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
+                <Icons.Terminal /> Command History ({backdoorHistory.length})
               </h3>
-              <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+              <div className="space-y-2.5 max-h-[280px] overflow-y-auto pr-1">
                 {backdoorHistory.length === 0 ? (
-                  <div className="text-xs text-gray-500 text-center py-6">No history available.</div>
+                  <div className="text-xs text-slate-500 text-center py-8">No backdoor commands logged yet.</div>
                 ) : (
                   backdoorHistory.map((h) => (
-                    <div key={h.id} className="bg-black/60 border border-gray-800 p-2.5 rounded-xl font-mono text-[10px] space-y-1">
-                      <div className="flex justify-between text-gray-400">
-                        <span className="text-yellow-400 font-bold">Target: {h.target_type} ({h.target_value})</span>
-                        <span>{new Date(h.created_at).toLocaleTimeString('en-US')}</span>
+                    <div key={h.id} className="bg-slate-950/80 border border-white/10 p-3 rounded-xl font-mono text-[11px] space-y-1">
+                      <div className="flex justify-between text-slate-400">
+                        <span className="text-amber-400 font-bold">Target: {h.target_type} ({h.target_value})</span>
+                        <span className="text-[10px]">{new Date(h.created_at).toLocaleTimeString('en-US')}</span>
                       </div>
-                      <div className="text-gray-300 truncate font-sans">{h.payload_lua}</div>
+                      <div className="text-slate-300 truncate font-sans text-xs">{h.payload_lua}</div>
                     </div>
                   ))
                 )}
@@ -1040,21 +1138,27 @@ sound:Play()`);
         </div>
       )}
 
-      {/* TAB 4: USER LOGS */}
+      {/* TAB 4: USER EXECUTION LOGS */}
       {activeTab === 'user_logs' && (
-        <div className="bg-[#0a0d16] border border-gray-800 p-5 sm:p-7 rounded-3xl space-y-5 shadow-xl">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="bg-slate-900/80 border border-white/10 p-5 sm:p-8 rounded-3xl space-y-6 shadow-2xl backdrop-blur-xl">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-sm font-black text-[#6E96FF] flex items-center gap-2 uppercase tracking-wide">
-                Execution Logs ({filteredLogs.length}/{logs.length})
+              <h2 className="text-sm font-black text-blue-400 flex items-center gap-2 uppercase tracking-wider">
+                <Icons.Database /> Execution Logs ({filteredLogs.length}/{logs.length})
               </h2>
             </div>
-            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-              <button onClick={loadLogsData} className="bg-gray-800 text-gray-200 border border-gray-700 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer hover:bg-gray-700 transition-all">
-                {isLoadingLogs ? 'Refreshing...' : 'Refresh'}
+            <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+              <button 
+                onClick={loadLogsData} 
+                className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+              >
+                <Icons.Refresh /> {isLoadingLogs ? 'Refreshing...' : 'Refresh Logs'}
               </button>
-              <button onClick={handleClearLogs} className="bg-red-500/15 text-red-400 border border-red-500/30 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer hover:bg-red-500/25 transition-all">
-                Clear Logs
+              <button 
+                onClick={handleClearLogs} 
+                className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+              >
+                <Icons.Trash /> Clear All
               </button>
             </div>
           </div>
@@ -1062,38 +1166,41 @@ sound:Play()`);
           <div className="relative">
             <input
               type="text"
-              placeholder="Search by username, ID, IP, Discord..."
+              placeholder="Search logs by username, ID, IP address, Discord tag..."
               value={logSearchQuery}
               onChange={(e) => setLogSearchQuery(e.target.value)}
-              className="w-full bg-black/80 border border-gray-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-gray-500 focus:border-[#6E96FF] outline-none transition-all shadow-inner"
+              className="w-full bg-slate-950/80 border border-white/10 rounded-2xl pl-10 pr-10 py-3 text-xs text-white placeholder:text-slate-500 focus:border-blue-500 outline-none transition-all shadow-inner"
             />
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
+              <Icons.Search />
+            </span>
             {logSearchQuery && (
               <button 
                 onClick={() => setLogSearchQuery('')}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-white cursor-pointer bg-gray-800 px-1.5 py-0.5 rounded-md"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white cursor-pointer bg-slate-800 px-2 py-1 rounded-md"
               >
                 Clear
               </button>
             )}
           </div>
 
-          <div className="overflow-x-auto border border-gray-800 rounded-2xl bg-black/40">
+          <div className="overflow-x-auto border border-white/10 rounded-2xl bg-slate-950/40">
             <table className="w-full text-left text-xs">
-              <thead className="bg-[#0c0f17] text-gray-400 font-extrabold border-b border-gray-800 uppercase text-[10px]">
+              <thead className="bg-slate-950 text-slate-400 font-extrabold border-b border-white/10 uppercase text-[10px] tracking-wider">
                 <tr>
-                  <th className="p-3.5">Roblox User</th>
-                  <th className="p-3.5">Server Type</th>
-                  <th className="p-3.5">IP Address</th>
-                  <th className="p-3.5">Discord / Executor</th>
-                  <th className="p-3.5">Timestamp</th>
-                  <th className="p-3.5">Actions</th>
+                  <th className="p-4">Roblox User</th>
+                  <th className="p-4">Server Type</th>
+                  <th className="p-4">IP Address</th>
+                  <th className="p-4">Discord / Executor</th>
+                  <th className="p-4">Timestamp</th>
+                  <th className="p-4">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-800/60 font-mono">
+              <tbody className="divide-y divide-white/5 font-mono">
                 {filteredLogs.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-8 text-gray-500 font-sans text-xs">
-                      {logSearchQuery ? `No logs match "${logSearchQuery}"` : 'No log data.'}
+                    <td colSpan={6} className="text-center py-10 text-slate-500 font-sans text-xs">
+                      {logSearchQuery ? `No execution logs match "${logSearchQuery}"` : 'No execution logs recorded yet.'}
                     </td>
                   </tr>
                 ) : (
@@ -1102,39 +1209,39 @@ sound:Play()`);
 
                     return (
                       <tr key={log.id} className="hover:bg-white/[0.02] transition-all">
-                        <td className="p-3.5 font-sans font-bold text-white">
-                          <div>{log.roblox_username}</div>
-                          <div className="text-[10px] text-gray-400 font-mono">ID: {log.roblox_id}</div>
+                        <td className="p-4 font-sans font-bold text-white">
+                          <div className="text-sm">{log.roblox_username}</div>
+                          <div className="text-[10px] text-slate-400 font-mono">ID: {log.roblox_id}</div>
                         </td>
 
-                        <td className="p-3.5">
+                        <td className="p-4">
                           {log.is_vip ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-black bg-purple-500/15 border border-purple-500/30 text-purple-400">
+                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black bg-purple-500/15 border border-purple-500/30 text-purple-300">
                               VIP Server
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-black bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
                               Public Server
                             </span>
                           )}
                         </td>
 
-                        <td className="p-3.5 text-[#6E96FF]">{log.ip_address}</td>
+                        <td className="p-4 text-blue-400 font-bold">{log.ip_address}</td>
                         
-                        <td className="p-3.5 font-sans text-xs">
+                        <td className="p-4 font-sans text-xs">
                           <div className="text-indigo-300 font-bold">{log.discord_user || 'N/A'}</div>
-                          <div className="text-gray-400 text-[10px] font-mono mt-0.5">{log.executor}</div>
+                          <div className="text-slate-400 text-[10px] font-mono mt-0.5">{log.executor}</div>
                         </td>
 
-                        <td className="p-3.5 text-gray-400 text-[11px]">
+                        <td className="p-4 text-slate-400 text-[11px]">
                           {new Date(log.created_at).toLocaleString('en-US')}
                         </td>
 
-                        <td className="p-3.5">
+                        <td className="p-4">
                           <div className="flex items-center gap-2 flex-wrap">
                             <button
                               onClick={() => handleOpenStorageModal(log)}
-                              className="bg-[#6E96FF]/20 border border-[#6E96FF]/40 text-[#6E96FF] hover:bg-[#6E96FF] hover:text-black px-2.5 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-all"
+                              className="bg-blue-600/20 hover:bg-blue-600 border border-blue-500/40 text-blue-300 hover:text-white px-3 py-1.5 rounded-xl text-[11px] font-bold cursor-pointer transition-all active:scale-95"
                             >
                               Storage
                             </button>
@@ -1142,21 +1249,21 @@ sound:Play()`);
                             {log.place_id && log.job_id ? (
                               <button
                                 onClick={() => handleCopyJoinScript(log)}
-                                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-all ${
+                                className={`px-3 py-1.5 rounded-xl text-[11px] font-bold cursor-pointer transition-all active:scale-95 ${
                                   isCopied
                                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                                    : 'bg-[#6E96FF]/20 text-[#6E96FF] border border-[#6E96FF]/40 hover:bg-[#6E96FF] hover:text-black'
+                                    : 'bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-500/40 text-indigo-300 hover:text-white'
                                 }`}
                               >
                                 {isCopied ? 'Copied' : 'Copy Join'}
                               </button>
                             ) : (
-                              <span className="text-[10px] text-gray-500 italic font-mono">No JobId</span>
+                              <span className="text-[10px] text-slate-500 italic font-mono">No JobId</span>
                             )}
 
                             <button
                               onClick={() => handleSelectUserForBackdoor(log.roblox_username)}
-                              className="bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/30 px-2.5 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-all"
+                              className="bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 px-3 py-1.5 rounded-xl text-[11px] font-bold cursor-pointer transition-all active:scale-95"
                             >
                               Target
                             </button>
@@ -1172,64 +1279,66 @@ sound:Play()`);
         </div>
       )}
 
-      {/* TAB 5: SETTINGS */}
+      {/* TAB 5: ADMIN SETTINGS */}
       {activeTab === 'settings' && (
-        <div className="bg-[#0a0d16] border border-gray-800 p-5 sm:p-7 rounded-3xl space-y-4 shadow-xl max-w-xl">
-          <div className="text-sm font-black text-[#6E96FF] flex items-center gap-2 uppercase">
-            Change Admin Password
+        <div className="bg-slate-900/80 border border-white/10 p-6 sm:p-8 rounded-3xl space-y-5 shadow-2xl backdrop-blur-xl max-w-xl">
+          <div className="text-sm font-black text-blue-400 flex items-center gap-2 uppercase tracking-wider">
+            <Icons.Settings /> CHANGE ADMIN PASSWORD
           </div>
           <input
             type="password"
-            placeholder="New password..."
+            placeholder="Enter new admin password..."
             value={newAdminPass}
             onChange={(e) => setNewAdminPass(e.target.value)}
-            className="w-full bg-black/80 border border-gray-800 p-3 rounded-xl text-xs text-white outline-none focus:border-[#6E96FF]"
+            className="w-full bg-slate-950 border border-white/10 p-3.5 rounded-2xl text-xs text-white outline-none focus:border-blue-500 font-mono transition-all"
           />
           <button 
             onClick={handleSaveAdminPassword} 
             disabled={isSaving}
-            className="w-full bg-green-600 text-white font-black py-3 rounded-xl text-xs cursor-pointer hover:bg-green-500 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white font-black py-4 rounded-2xl text-xs uppercase tracking-wider cursor-pointer transition-all active:scale-[0.98] disabled:opacity-50"
           >
-            {isSaving ? 'Updating...' : 'UPDATE PASSWORD'}
+            {isSaving ? 'UPDATING...' : 'UPDATE PASSWORD'}
           </button>
         </div>
       )}
 
-      {/* MODAL: STORAGE LOGS */}
+      {/* MODAL: STORAGE LOGS DETAIL */}
       {isStorageModalOpen && selectedStorageLog && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
-          <div className="bg-[#0c0f17] border border-[#6E96FF]/40 w-full max-w-2xl rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(110,150,255,0.25)] flex flex-col max-h-[85vh]">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
+          <div className="bg-slate-900 border border-blue-500/30 w-full max-w-2xl rounded-3xl overflow-hidden shadow-[0_0_60px_rgba(59,130,246,0.3)] flex flex-col max-h-[85vh]">
             
-            <div className="p-5 border-b border-white/10 flex items-center justify-between bg-[#080a0f]">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-white/10 flex items-center justify-between bg-slate-950/60">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-[#6E96FF]/15 border border-[#6E96FF]/30 flex items-center justify-center text-[#6E96FF] font-black">
-                  S
+                <div className="w-10 h-10 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 font-black">
+                  <Icons.Box />
                 </div>
                 <div>
                   <h3 className="font-extrabold text-base sm:text-lg text-white flex items-center gap-2">
                     {selectedStorageLog.roblox_username}
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-[#6E96FF] border border-[#6E96FF]/20 font-mono">
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-white/10 text-blue-400 border border-blue-500/20 font-mono">
                       ID: {selectedStorageLog.roblox_id}
                     </span>
                   </h3>
-                  <p className="text-[11px] text-[#949db1]">Click any Stand slot to copy AddStand remote code</p>
+                  <p className="text-[11px] text-slate-400">Click any Stand slot to copy remote AddStand payload</p>
                 </div>
               </div>
               <button 
                 onClick={() => setIsStorageModalOpen(false)}
-                className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer font-bold"
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
               >
-                ✕
+                <Icons.Cross />
               </button>
             </div>
 
-            <div className="p-3 bg-[#080a0f]/60 border-b border-white/5 grid grid-cols-2 gap-2">
+            {/* Modal Tabs */}
+            <div className="p-3 bg-slate-950/40 border-b border-white/5 grid grid-cols-2 gap-2">
               <button
                 onClick={() => setStorageTab('stands')}
                 className={`py-2.5 px-4 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
                   storageTab === 'stands'
-                    ? 'bg-[#6E96FF] text-[#04060a] shadow-[0_0_20px_rgba(110,150,255,0.4)]'
-                    : 'bg-[#0a0d14] text-gray-400 hover:text-white border border-white/5'
+                    ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(59,130,246,0.4)]'
+                    : 'bg-slate-900 text-slate-400 hover:text-white border border-white/5'
                 }`}
               >
                 Stand Storage
@@ -1239,14 +1348,15 @@ sound:Play()`);
                 onClick={() => setStorageTab('inventory')}
                 className={`py-2.5 px-4 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
                   storageTab === 'inventory'
-                    ? 'bg-[#6E96FF] text-[#04060a] shadow-[0_0_20px_rgba(110,150,255,0.4)]'
-                    : 'bg-[#0a0d14] text-gray-400 hover:text-white border border-white/5'
+                    ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(59,130,246,0.4)]'
+                    : 'bg-slate-900 text-slate-400 hover:text-white border border-white/5'
                 }`}
               >
                 Inventory
               </button>
             </div>
 
+            {/* Modal Body: Stands */}
             {storageTab === 'stands' && (
               <div className="p-5 overflow-y-auto space-y-4">
                 {parsedStandData.slots && parsedStandData.slots.length > 0 ? (
@@ -1275,16 +1385,16 @@ sound:Play()`);
                           onClick={handleCopyRemote}
                           className={`border rounded-2xl p-4 transition-all relative overflow-hidden group ${
                             slot.is_empty 
-                              ? 'bg-[#080a0f]/40 border-white/5 opacity-60 cursor-not-allowed' 
-                              : 'bg-[#080a0f] border-[#6E96FF]/30 hover:border-[#6E96FF] hover:shadow-[0_0_20px_rgba(110,150,255,0.25)] cursor-pointer'
+                              ? 'bg-slate-950/40 border-white/5 opacity-50 cursor-not-allowed' 
+                              : 'bg-slate-950 border-blue-500/30 hover:border-blue-500 hover:shadow-[0_0_25px_rgba(59,130,246,0.25)] cursor-pointer'
                           }`}
                         >
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#949db1] bg-white/5 px-2 py-0.5 rounded-md border border-white/10">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 bg-white/5 px-2.5 py-0.5 rounded-md border border-white/10">
                               Slot {slot.slot}
                             </span>
                             {!slot.is_empty && (
-                              <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border font-mono ${getTierStyle(slot.tier)}`}>
+                              <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-lg border font-mono ${getTierStyle(slot.tier)}`}>
                                 Tier: {slot.tier}
                               </span>
                             )}
@@ -1294,27 +1404,27 @@ sound:Play()`);
                             {slot.name}
                           </div>
 
-                          <div className="mt-2 flex items-center gap-1.5 text-xs text-[#949db1]">
-                            <span>Attribute: <strong className="text-gray-200">{slot.attribute}</strong></span>
+                          <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-400">
+                            <span>Attribute: <strong className="text-slate-200">{slot.attribute}</strong></span>
                           </div>
 
                           {slot.guid && (
-                            <div className="mt-1 text-[10px] font-mono text-gray-500 truncate">
+                            <div className="mt-1 text-[10px] font-mono text-slate-500 truncate">
                               GUID: {slot.guid}
                             </div>
                           )}
 
                           {!slot.is_empty && (
-                            <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between">
-                              <span className="text-[10px] font-bold text-gray-400 group-hover:text-[#6E96FF] transition-all">
-                                {isCopied ? 'Copied' : 'Copy Remote AddStand'}
+                            <div className="mt-3 pt-2.5 border-t border-white/5 flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-slate-400 group-hover:text-blue-400 transition-all">
+                                {isCopied ? 'Copied Remote Code' : 'Copy AddStand Remote'}
                               </span>
                               <button
                                 onClick={handleCopyRemote}
-                                className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all ${
+                                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
                                   isCopied
                                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                                    : 'bg-[#6E96FF]/15 text-[#6E96FF] border border-[#6E96FF]/30 group-hover:bg-[#6E96FF] group-hover:text-black'
+                                    : 'bg-blue-600/20 text-blue-300 border border-blue-500/30 group-hover:bg-blue-600 group-hover:text-white'
                                 }`}
                               >
                                 {isCopied ? 'Copied' : 'Copy'}
@@ -1326,45 +1436,42 @@ sound:Play()`);
                     })}
                   </div>
                 ) : (
-                  <div className="text-center py-10 text-gray-500 font-bold text-xs">
-                    No stand data logged.
+                  <div className="text-center py-12 text-slate-500 font-bold text-xs">
+                    No stand data recorded in storage.
                   </div>
                 )}
 
-                <div className="bg-[#080a0f] border border-[#6E96FF]/25 rounded-2xl p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div>
-                      <div className="text-[10px] font-bold text-[#949db1] uppercase">Spec Storage</div>
-                      <div className="text-sm font-extrabold text-white">{parsedStandData.spec_storage || 'Empty'}</div>
-                    </div>
+                <div className="bg-slate-950 border border-blue-500/25 rounded-2xl p-4 flex items-center justify-between">
+                  <div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase">Spec Storage</div>
+                    <div className="text-sm font-extrabold text-white mt-0.5">{parsedStandData.spec_storage || 'Empty'}</div>
                   </div>
-                  <span className="text-xs bg-[#6E96FF]/10 text-[#6E96FF] border border-[#6E96FF]/30 px-2.5 py-1 rounded-lg font-mono">
+                  <span className="text-xs bg-blue-500/10 text-blue-400 border border-blue-500/30 px-3 py-1 rounded-xl font-mono">
                     Active Spec
                   </span>
                 </div>
               </div>
             )}
 
+            {/* Modal Body: Inventory */}
             {storageTab === 'inventory' && (
               <div className="p-5 overflow-y-auto">
                 {parsedInventoryData.length === 0 ? (
-                  <div className="text-center py-12 text-gray-500 font-bold text-xs">
-                    No inventory data logged.
+                  <div className="text-center py-12 text-slate-500 font-bold text-xs">
+                    No inventory item data recorded.
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {parsedInventoryData.map((item, idx) => (
                       <div 
                         key={idx} 
-                        className="bg-[#080a0f] border border-white/10 rounded-2xl p-3.5 flex items-center justify-between hover:border-[#6E96FF]/50 transition-all"
+                        className="bg-slate-950 border border-white/10 rounded-2xl p-4 flex items-center justify-between hover:border-blue-500/40 transition-all"
                       >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="min-w-0">
-                            <div className="font-bold text-xs sm:text-sm text-white truncate">{item.name}</div>
-                            <div className="text-[10px] text-[#949db1] font-medium">{item.type}</div>
-                          </div>
+                        <div className="min-w-0 pr-2">
+                          <div className="font-bold text-xs sm:text-sm text-white truncate">{item.name}</div>
+                          <div className="text-[10px] text-slate-400 mt-0.5">{item.type}</div>
                         </div>
-                        <div className="bg-[#6E96FF]/15 text-[#6E96FF] border border-[#6E96FF]/30 text-xs font-extrabold px-2.5 py-1 rounded-lg font-mono shrink-0">
+                        <div className="bg-blue-600/20 text-blue-400 border border-blue-500/30 text-xs font-extrabold px-3 py-1 rounded-xl font-mono shrink-0">
                           x{item.count}
                         </div>
                       </div>
@@ -1374,10 +1481,11 @@ sound:Play()`);
               </div>
             )}
 
-            <div className="p-4 bg-[#080a0f] border-t border-white/10 flex justify-end">
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-950 border-t border-white/10 flex justify-end">
               <button
                 onClick={() => setIsStorageModalOpen(false)}
-                className="bg-white/10 hover:bg-white/20 text-white text-xs font-bold py-2 px-5 rounded-xl transition-all cursor-pointer"
+                className="bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold py-2.5 px-6 rounded-xl transition-all cursor-pointer"
               >
                 Close
               </button>
