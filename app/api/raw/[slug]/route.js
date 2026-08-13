@@ -1,5 +1,4 @@
 import { supabase } from '@/lib/supabase';
-import crypto from 'node:crypto';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -26,8 +25,8 @@ print("[Lurix Anti-Skid]: Access Denied - " .. "${reason}")
 while true do task.wait(99999) end`;
 }
 
-function verifyHandshakeToken(slug, token, timestampStr) {
-  
+// Hàm mã hóa SHA-256 dùng Web Crypto API chuẩn cho Edge Runtime
+async function verifyHandshakeToken(slug, token, timestampStr) {
   if (!HANDSHAKE_SECRET || !token || !timestampStr) {
     return false;
   }
@@ -39,10 +38,10 @@ function verifyHandshakeToken(slug, token, timestampStr) {
     return false;
   }
 
-  const expectedHash = crypto
-    .createHash('sha256')
-    .update(`${slug}:${timestampStr}:${HANDSHAKE_SECRET}`)
-    .digest('hex');
+  const msgUint8 = new TextEncoder().encode(`${slug}:${timestampStr}:${HANDSHAKE_SECRET}`);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const expectedHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
   return token.toLowerCase() === expectedHash.toLowerCase();
 }
@@ -90,7 +89,7 @@ export async function GET(request, { params }) {
   const time = searchParams.get('ts') || request.headers.get('x-lurix-time');
 
   if (!HANDSHAKE_SECRET) {
-    console.error('[Lurix Hub Error]: HANDSHAKE_SECRET is not set on Vercel Environment Variables!');
+    console.error('[Lurix Hub Error]: HANDSHAKE_SECRET is not set on Environment Variables!');
     return new Response(`print("[Lurix Hub Error]: Server security misconfiguration. Please contact admin.")`, {
       status: 500,
       headers: { 'Content-Type': 'text/plain; charset=utf-8' },
@@ -111,7 +110,7 @@ export async function GET(request, { params }) {
     });
   }
 
-  const isValidHandshake = verifyHandshakeToken(slug, token, time);
+  const isValidHandshake = await verifyHandshakeToken(slug, token, time);
   if (!isValidHandshake) {
     await logSkidAttempt(request, slug, 'Invalid Token or Time Mismatch', ipAddress);
     return new Response(generateHoneypotLua('Invalid Handshake Token or Expired Request'), {
