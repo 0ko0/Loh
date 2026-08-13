@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { NextResponse } from 'next/server';
 
+export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request) {
@@ -11,7 +12,6 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: 'Mật khẩu không được để trống!' }, { status: 400 });
     }
 
-    // Dùng select() dạng Array thay vì .single() để tránh crash 500 khi thiếu/trùng data
     const { data, error } = await supabase
       .from('settings')
       .select('value')
@@ -22,7 +22,6 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: `Lỗi DB: ${error.message}` }, { status: 500 });
     }
 
-    // Nếu chưa có row admin_password trong DB thì mặc định dùng admin123
     const correctPassword = (data && data.length > 0) ? data[0].value : 'admin123';
 
     if (body.password === correctPassword) {
