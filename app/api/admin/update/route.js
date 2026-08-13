@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import { NextResponse } from 'next/server';
 
+export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request) {
@@ -11,7 +12,6 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: 'Thiếu thông tin mật khẩu!' }, { status: 400 });
     }
 
-    // 1. Lấy mật khẩu Admin hiện tại từ DB
     const { data: passData } = await supabaseAdmin
       .from('settings')
       .select('value')
@@ -24,7 +24,6 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: 'Mật khẩu hiện tại không đúng!' }, { status: 401 });
     }
 
-    // 2. Cập nhật đè trực tiếp lên tất cả các dòng admin_password
     const { error } = await supabaseAdmin
       .from('settings')
       .update({ value: newPassword })
