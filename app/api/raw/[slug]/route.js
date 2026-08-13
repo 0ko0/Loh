@@ -1,8 +1,9 @@
 import { supabase } from '@/lib/supabase';
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+export const runtime = 'edge';
 
 const HANDSHAKE_SECRET = process.env.HANDSHAKE_SECRET;
 
